@@ -50,6 +50,10 @@ body {
   background:#1e90ff;
   color:white;
 }
+
+#ptt:active {
+  background:#0b5ed7;
+}
 </style>
 </head>
 
@@ -59,7 +63,7 @@ body {
 
 <h1>Z-Link Talk</h1>
 
-<div id="status" class="status">Conectado</div>
+<div id="status" class="status">Conectando...</div>
 
 <div id="vu">
   <div id="vu-bar"></div>
@@ -72,7 +76,9 @@ body {
 </div>
 
 <script>
-// WebRTC
+// ======================
+// CONFIG WEBRTC
+// ======================
 const pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
@@ -80,14 +86,18 @@ const pc = new RTCPeerConnection({
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
 let localStream;
+let analyser;
 let keyPressed = false;
 
 const statusEl = document.getElementById("status");
+const vuBar = document.getElementById("vu-bar");
+const ptt = document.getElementById("ptt");
 
-// CONTEXTO
+// ======================
+// ÁUDIO (SUBTOM)
+// ======================
 const audioCtx = new AudioContext();
 
-// subtom RX
 function playTone(freq, durationMs) {
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
@@ -102,82 +112,63 @@ function playTone(freq, durationMs) {
   osc.stop(audioCtx.currentTime + durationMs / 1000);
 }
 
-// desbloquear áudio
+// desbloqueio
 document.body.addEventListener("click", () => {
   audioCtx.resume();
 });
 
-// microfone
+// ======================
+// MICROFONE + VU
+// ======================
 navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
   localStream = stream;
+
+  // inicia mutado
   stream.getAudioTracks().forEach(t => t.enabled = false);
 
+  // VU meter
+  const ctx = new AudioContext();
+  analyser = ctx.createAnalyser();
+  const source = ctx.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  function loop(){
+    analyser.getByteFrequencyData(data);
+    let vol = data.reduce((a,b)=>a+b)/data.length;
+    vuBar.style.width = (vol/2) + "%";
+    requestAnimationFrame(loop);
+  }
+  loop();
+
+  // adiciona ao WebRTC
   stream.getTracks().forEach(track => {
     pc.addTrack(track, stream);
   });
 });
 
+// ======================
 // RECEBER ÁUDIO
+// ======================
 pc.ontrack = e => {
-  const remoteStream = e.streams[0];
-
   const audio = new Audio();
-  audio.srcObject = remoteStream;
+  audio.srcObject = e.streams[0];
   audio.play();
-
-  // ANALISADOR
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  const source = ctx.createMediaStreamSource(remoteStream);
-  source.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  let receiving = false;
-  let lastActive = 0;
-
-  function detect() {
-    analyser.getByteFrequencyData(data);
-
-    let volume = data.reduce((a,b)=>a+b)/data.length;
-
-    if (volume > 12) {
-      lastActive = Date.now();
-
-      if (!receiving) {
-        receiving = true;
-
-        // 🔊 início RX
-        playTone(18500, 50);
-
-        statusEl.innerText = "Recebendo...";
-      }
-
-    } else {
-      if (receiving && Date.now() - lastActive > 250) {
-        receiving = false;
-
-        // 🔊 fim RX
-        playTone(17500, 100);
-
-        statusEl.innerText = "Escutando";
-      }
-    }
-
-    requestAnimationFrame(detect);
-  }
-
-  detect();
 };
 
+// ======================
 // ICE
+// ======================
 pc.onicecandidate = e => {
   if (e.candidate) {
     ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
   }
 };
 
-// conexão
+// ======================
+// CONEXÃO
+// ======================
 ws.onopen = async () => {
   statusEl.innerText = "Conectado";
 
@@ -187,10 +178,13 @@ ws.onopen = async () => {
   ws.send(JSON.stringify({ type: "offer", offer }));
 };
 
-// mensagens
+// ======================
+// MENSAGENS
+// ======================
 ws.onmessage = async msg => {
   const data = JSON.parse(msg.data);
 
+  // WebRTC
   if (data.type === "offer") {
     await pc.setRemoteDescription(data.offer);
 
@@ -207,20 +201,45 @@ ws.onmessage = async msg => {
   if (data.type === "ice") {
     try { await pc.addIceCandidate(data.candidate); } catch {}
   }
+
+  // ======================
+  // CONTROLE DE TX (SEM VAD)
+  // ======================
+  if (data.type === "start_tx") {
+    playTone(18500, 50);
+    statusEl.innerText = "Recebendo...";
+  }
+
+  if (data.type === "stop_tx") {
+    playTone(17500, 100);
+    statusEl.innerText = "Escutando";
+  }
 };
 
+// ======================
 // PTT
+// ======================
 function talk(on){
   if (!localStream) return;
 
   localStream.getAudioTracks().forEach(t => t.enabled = on);
 
-  statusEl.innerText = on ? "Transmitindo..." : "Escutando";
+  if (on) {
+    ws.send(JSON.stringify({ type: "start_tx" }));
+    statusEl.innerText = "Transmitindo...";
+  } else {
+    ws.send(JSON.stringify({ type: "stop_tx" }));
+    statusEl.innerText = "Escutando";
+  }
 }
 
+// ======================
+// CONTROLES
+// ======================
+
 // mouse
-ptt.onmousedown = () => talk(true);
-ptt.onmouseup = () => talk(false);
+ptt.addEventListener("mousedown", () => talk(true));
+ptt.addEventListener("mouseup", () => talk(false));
 
 // touch
 ptt.addEventListener("touchstart", e => {
