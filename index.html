@@ -63,7 +63,7 @@ body {
 
 <h1>Z-Link Talk</h1>
 
-<div id="status" class="status">Conectando...</div>
+<div id="status" class="status">Conectado</div>
 
 <div id="vu">
   <div id="vu-bar"></div>
@@ -73,12 +73,13 @@ body {
 
 <p>Ou pressione F7</p>
 
+<!-- 🔊 PLAYER FIXO -->
+<audio id="remoteAudio" autoplay playsinline></audio>
+
 </div>
 
 <script>
-// ======================
-// CONFIG WEBRTC
-// ======================
+// WebRTC
 const pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
@@ -92,10 +93,9 @@ let keyPressed = false;
 const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
 const ptt = document.getElementById("ptt");
+const remoteAudio = document.getElementById("remoteAudio");
 
-// ======================
-// ÁUDIO (SUBTOM)
-// ======================
+// ÁUDIO
 const audioCtx = new AudioContext();
 
 function playTone(freq, durationMs) {
@@ -112,21 +112,19 @@ function playTone(freq, durationMs) {
   osc.stop(audioCtx.currentTime + durationMs / 1000);
 }
 
-// desbloqueio
+// desbloquear áudio
 document.body.addEventListener("click", () => {
   audioCtx.resume();
+  remoteAudio.play().catch(()=>{});
 });
 
-// ======================
-// MICROFONE + VU
-// ======================
+// microfone
 navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
   localStream = stream;
 
-  // inicia mutado
   stream.getAudioTracks().forEach(t => t.enabled = false);
 
-  // VU meter
+  // VU
   const ctx = new AudioContext();
   analyser = ctx.createAnalyser();
   const source = ctx.createMediaStreamSource(stream);
@@ -142,33 +140,24 @@ navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
   }
   loop();
 
-  // adiciona ao WebRTC
   stream.getTracks().forEach(track => {
     pc.addTrack(track, stream);
   });
 });
 
-// ======================
-// RECEBER ÁUDIO
-// ======================
+// 🔊 RECEBER ÁUDIO (CORRIGIDO)
 pc.ontrack = e => {
-  const audio = new Audio();
-  audio.srcObject = e.streams[0];
-  audio.play();
+  remoteAudio.srcObject = e.streams[0];
 };
 
-// ======================
 // ICE
-// ======================
 pc.onicecandidate = e => {
   if (e.candidate) {
     ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
   }
 };
 
-// ======================
-// CONEXÃO
-// ======================
+// conexão
 ws.onopen = async () => {
   statusEl.innerText = "Conectado";
 
@@ -178,13 +167,10 @@ ws.onopen = async () => {
   ws.send(JSON.stringify({ type: "offer", offer }));
 };
 
-// ======================
-// MENSAGENS
-// ======================
+// mensagens
 ws.onmessage = async msg => {
   const data = JSON.parse(msg.data);
 
-  // WebRTC
   if (data.type === "offer") {
     await pc.setRemoteDescription(data.offer);
 
@@ -202,9 +188,6 @@ ws.onmessage = async msg => {
     try { await pc.addIceCandidate(data.candidate); } catch {}
   }
 
-  // ======================
-  // CONTROLE DE TX (SEM VAD)
-  // ======================
   if (data.type === "start_tx") {
     playTone(18500, 50);
     statusEl.innerText = "Recebendo...";
@@ -216,9 +199,7 @@ ws.onmessage = async msg => {
   }
 };
 
-// ======================
 // PTT
-// ======================
 function talk(on){
   if (!localStream) return;
 
@@ -233,15 +214,10 @@ function talk(on){
   }
 }
 
-// ======================
-// CONTROLES
-// ======================
-
-// mouse
+// controles
 ptt.addEventListener("mousedown", () => talk(true));
 ptt.addEventListener("mouseup", () => talk(false));
 
-// touch
 ptt.addEventListener("touchstart", e => {
   e.preventDefault();
   talk(true);
@@ -252,7 +228,6 @@ ptt.addEventListener("touchend", e => {
   talk(false);
 });
 
-// teclado
 document.addEventListener("keydown", e => {
   if (e.key === "F7" && !keyPressed) {
     keyPressed = true;
