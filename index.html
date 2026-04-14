@@ -9,7 +9,7 @@
 body {
   margin:0;
   font-family: Arial;
-  background:#0d0d0d;
+  background:#000;
   color:#fff;
   text-align:center;
 }
@@ -18,36 +18,48 @@ body {
   padding:20px;
 }
 
-.status {
-  padding:5px 10px;
-  border-radius:5px;
+h1 {
+  margin-bottom:5px;
 }
 
-.disconnected { background:red; }
-.connected { background:green; }
+.subtitle {
+  color:#aaa;
+  margin-bottom:20px;
+}
+
+.status {
+  padding:6px 12px;
+  border-radius:6px;
+  font-weight:bold;
+}
+
+.connected { background:#0a8f2a; }
+.disconnected { background:#a00; }
+.tx { background:#1e90ff; }
+.busy { background:#ff9900; }
 
 .channel-control {
   display:flex;
   justify-content:center;
   align-items:center;
-  margin:20px;
+  margin:20px 0;
 }
 
 .ch-btn {
-  padding:10px;
-  font-size:18px;
+  padding:8px 12px;
+  font-size:16px;
 }
 
 .channel-display {
   margin:0 20px;
 }
 
-#vu {
-  width:200px;
+#vu-container {
+  width:250px;
   height:20px;
   background:#222;
-  margin:20px auto;
   border-radius:10px;
+  margin:20px auto;
   overflow:hidden;
 }
 
@@ -55,6 +67,7 @@ body {
   height:100%;
   width:0%;
   background:#00ff88;
+  transition:width 0.1s;
 }
 
 .ptt-container {
@@ -62,17 +75,29 @@ body {
 }
 
 #ptt-btn {
-  width:200px;
-  height:200px;
+  width:220px;
+  height:220px;
   border-radius:50%;
   border:none;
   font-size:20px;
-  background:#1e90ff;
-  color:white;
+  background:#2f8cff;
+  color:#fff;
 }
 
 #ptt-btn:active {
-  background:#0b5ed7;
+  background:#1a5fbf;
+}
+
+input {
+  padding:10px;
+  width:200px;
+  margin-top:10px;
+  text-align:center;
+}
+
+.instructions {
+  margin-top:20px;
+  color:#aaa;
 }
 </style>
 </head>
@@ -82,26 +107,28 @@ body {
 <div class="app-container">
 
 <h1>Z-Link Talk</h1>
-<p>Desenvolvido por Diniz-RF</p>
+<p class="subtitle">Desenvolvido por Diniz-RF</p>
 
 <div>
-  <span id="connection-status" class="status disconnected">Desconectado</span>
+  <span id="status" class="status disconnected">Conectando...</span>
 </div>
 
 <br>
 
-<input id="username" placeholder="Seu nome" />
+<input id="username" placeholder="Seu nome">
 
 <div class="channel-control">
-  <button id="btn-ch-down">CH -</button>
-  <div>
-    <h2 id="channel-name">CH 1</h2>
-    <p id="user-count">• Canal único</p>
+  <button class="ch-btn">CH -</button>
+
+  <div class="channel-display">
+    <h2>CH 1</h2>
+    <p>• Canal único</p>
   </div>
-  <button id="btn-ch-up">CH +</button>
+
+  <button class="ch-btn">CH +</button>
 </div>
 
-<div id="vu">
+<div id="vu-container">
   <div id="vu-bar"></div>
 </div>
 
@@ -109,105 +136,129 @@ body {
   <button id="ptt-btn">SEGURE PARA FALAR</button>
 </div>
 
-<p>Pressione e segure o botão ou F7</p>
+<div class="instructions">
+  Pressione e segure ou tecla <strong>F7</strong>
+</div>
 
 </div>
 
 <script>
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
-const statusEl = document.getElementById("connection-status");
-const ptt = document.getElementById("ptt-btn");
-const nameInput = document.getElementById("username");
-
 let mediaRecorder;
 let isTalking = false;
+let audioUnlocked = false;
+
+const statusEl = document.getElementById("status");
+const ptt = document.getElementById("ptt-btn");
+const vuBar = document.getElementById("vu-bar");
+
+// desbloquear áudio
+document.body.addEventListener("click", () => {
+  if (!audioUnlocked) {
+    const a = new Audio();
+    a.play().catch(()=>{});
+    audioUnlocked = true;
+  }
+});
 
 // conexão
 ws.onopen = () => {
-  statusEl.innerText = "Conectado";
-  statusEl.classList.remove("disconnected");
-  statusEl.classList.add("connected");
+  statusEl.innerText = "Canal livre";
+  statusEl.className = "status connected";
 };
 
 ws.onclose = () => {
   statusEl.innerText = "Desconectado";
+  statusEl.className = "status disconnected";
 };
 
-// microfone + VU
+// microfone + VU (só TX)
 navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
 
-  const audioContext = new AudioContext();
-  const analyser = audioContext.createAnalyser();
-  const mic = audioContext.createMediaStreamSource(stream);
-  mic.connect(analyser);
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  const source = ctx.createMediaStreamSource(stream);
+  source.connect(analyser);
 
-  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  const data = new Uint8Array(analyser.frequencyBinCount);
 
-  function updateVU() {
-    analyser.getByteFrequencyData(dataArray);
-    let volume = dataArray.reduce((a,b)=>a+b)/dataArray.length;
-    document.getElementById("vu-bar").style.width = volume + "%";
-    requestAnimationFrame(updateVU);
+  function drawVU() {
+    if (isTalking) {
+      analyser.getByteFrequencyData(data);
+      let vol = data.reduce((a,b)=>a+b)/data.length;
+      vuBar.style.width = vol + "%";
+    } else {
+      vuBar.style.width = "0%";
+    }
+    requestAnimationFrame(drawVU);
   }
-  updateVU();
+  drawVU();
 
   mediaRecorder = new MediaRecorder(stream);
 
   mediaRecorder.ondataavailable = e => {
-    if(isTalking) ws.send(e.data);
+    if (isTalking && e.data.size > 0) {
+      ws.send(e.data);
+    }
   };
 });
 
-// botão PTT
+// PTT
 ptt.onmousedown = () => {
-  ws.send(JSON.stringify({type:"request", name: nameInput.value}));
+  ws.send(JSON.stringify({type:"request"}));
 };
 
-ptt.onmouseup = () => {
-  isTalking = false;
-  ws.send(JSON.stringify({type:"release"}));
-};
+ptt.onmouseup = stopTalking;
 
-// tecla F7
 document.addEventListener("keydown", e => {
-  if(e.key === "F7") {
-    ws.send(JSON.stringify({type:"request", name: nameInput.value}));
+  if (e.key === "F7") {
+    ws.send(JSON.stringify({type:"request"}));
   }
 });
 
 document.addEventListener("keyup", e => {
-  if(e.key === "F7") {
-    isTalking = false;
-    ws.send(JSON.stringify({type:"release"}));
-  }
+  if (e.key === "F7") stopTalking();
 });
 
-// receber dados
+function stopTalking() {
+  isTalking = false;
+  ws.send(JSON.stringify({type:"release"}));
+  statusEl.innerText = "Canal livre";
+  statusEl.className = "status connected";
+}
+
+// receber áudio
 ws.onmessage = async (msg) => {
 
-  if(typeof msg.data === "string") {
+  if (typeof msg.data === "string") {
     const data = JSON.parse(msg.data);
 
-    if(data.type === "granted") {
+    if (data.type === "granted") {
       isTalking = true;
       mediaRecorder.start(200);
       statusEl.innerText = "Transmitindo...";
+      statusEl.className = "status tx";
     }
 
-    if(data.type === "busy") {
+    if (data.type === "busy") {
       statusEl.innerText = "Canal ocupado";
+      statusEl.className = "status busy";
     }
 
-    if(data.type === "free") {
+    if (data.type === "free") {
       statusEl.innerText = "Canal livre";
+      statusEl.className = "status connected";
     }
 
   } else {
-    const audio = new Audio(URL.createObjectURL(msg.data));
-    audio.play();
+    try {
+      const audio = new Audio(URL.createObjectURL(msg.data));
+      await audio.play();
+    } catch (e) {
+      console.log("Erro áudio:", e);
+    }
   }
-
 };
 </script>
 
