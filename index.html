@@ -17,7 +17,7 @@
             --ptt-idle: #2c3e50;
         }
 
-        /* 1. CORREÇÃO GLOBAL: Remove o highlight de toque em todo o app */
+        /* CORREÇÃO GLOBAL: Remove o highlight de toque em todo o app */
         * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -35,7 +35,6 @@
             justify-content: center;
             height: 100vh;
             overflow: hidden;
-            /* Impede seleção de texto acidental no corpo do app */
             user-select: none;
             -webkit-user-select: none;
         }
@@ -108,7 +107,6 @@
             margin: 20px 0;
         }
 
-        /* 2. CORREÇÃO NO BOTÃO: Remove efeitos de sistema no Android */
         #ptt-btn {
             width: 210px;
             height: 210px;
@@ -125,19 +123,15 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            
-            /* Propriedades de correção visual */
             outline: none;
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
             user-select: none;
             -webkit-user-select: none;
             touch-action: none;
-            
             position: relative;
         }
 
-        /* 3. CORREÇÃO INTERNA: Impede que o texto interfira no toque ou seja selecionado */
         #ptt-btn span, #ptt-btn strong {
             pointer-events: none;
             user-select: none;
@@ -214,7 +208,6 @@
     </div>
 
     <script>
-        // --- LÓGICA MANTIDA CONFORME ESPECIFICAÇÕES ANTERIORES ---
         const WS_URL = "wss://z-link-talk.onrender.com";
         const AUDIO_BITRATE = 32;
         const SUBTONE_START_FREQ = 18500;
@@ -256,7 +249,7 @@
         function connectWebSocket() {
             statusEl.innerText = "CONECTANDO...";
             ws = new WebSocket(WS_URL);
-            ws.onopen = () => { statusEl.innerText = "ESCUTANDO"; statusEl.className = ""; };
+            ws.onopen = () => { statusEl.innerText = "CANAL LIVRE"; statusEl.className = ""; };
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
                 const senderId = data.from || data.id;
@@ -350,7 +343,7 @@
             pttBtn.classList.remove('active');
             pttBtn.querySelector('strong').innerText = "SEGURE PARA FALAR";
             pttBtn.querySelector('span').innerText = "OU PRESSIONE F7";
-            statusEl.innerText = "ESCUTANDO";
+            statusEl.innerText = "CANAL LIVRE";
             statusEl.className = "";
             ws.send(JSON.stringify({ type: "stop_tx" }));
         }
@@ -377,7 +370,7 @@
                 rxCount = Math.max(0, rxCount - 1);
                 generateSubtone(SUBTONE_END_FREQ, 100);
                 if (rxCount === 0) {
-                    statusEl.innerText = "ESCUTANDO";
+                    statusEl.innerText = "CANAL LIVRE";
                     statusEl.className = "";
                     pttBtn.classList.remove('receiving');
                     pttBtn.querySelector('strong').innerText = "SEGURE PARA FALAR";
