@@ -12,6 +12,12 @@ body {
   background:#000;
   color:#fff;
   text-align:center;
+
+  /* BLOQUEIO MOBILE */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 
 .app {
@@ -54,15 +60,20 @@ body {
   background:#1e90ff;
   color:white;
 
-  /* 🔥 CORREÇÃO MOBILE */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  touch-action: none;
+  touch-action: manipulation;
 }
 
 #ptt:active {
   background:#0b5ed7;
+}
+
+input {
+  padding:10px;
+  width:200px;
+  text-align:center;
 }
 </style>
 </head>
@@ -90,17 +101,22 @@ body {
 </div>
 
 <script>
+// BLOQUEIOS GERAIS
+document.addEventListener("contextmenu", e => e.preventDefault());
+document.addEventListener("selectstart", e => e.preventDefault());
+
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
 let mediaRecorder;
 let isTalking = false;
 let stream;
+let keyPressed = false;
 
 const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
 const ptt = document.getElementById("ptt");
 
-// 🔊 desbloqueia áudio (OBRIGATÓRIO)
+// desbloqueia áudio
 document.body.addEventListener("click", () => {
   new Audio().play().catch(()=>{});
 });
@@ -135,14 +151,14 @@ navigator.mediaDevices.getUserMedia({ audio: true })
   alert("Erro microfone: " + err);
 });
 
-// 🔘 PTT (MOUSE)
+// PTT mouse
 ptt.addEventListener("mousedown", () => {
   ws.send(JSON.stringify({type:"request"}));
 });
 
-ptt.addEventListener("mouseup", stop);
+ptt.addEventListener("mouseup", stopTalking);
 
-// 🔘 PTT (CELULAR)
+// PTT touch
 ptt.addEventListener("touchstart", (e) => {
   e.preventDefault();
   ws.send(JSON.stringify({type:"request"}));
@@ -150,22 +166,26 @@ ptt.addEventListener("touchstart", (e) => {
 
 ptt.addEventListener("touchend", (e) => {
   e.preventDefault();
-  stop();
+  stopTalking();
 });
 
-// teclado
+// teclado F7
 document.addEventListener("keydown", e => {
-  if (e.key === "F7") {
+  if (e.key === "F7" && !keyPressed) {
+    keyPressed = true;
     ws.send(JSON.stringify({type:"request"}));
   }
 });
 
 document.addEventListener("keyup", e => {
-  if (e.key === "F7") stop();
+  if (e.key === "F7") {
+    keyPressed = false;
+    stopTalking();
+  }
 });
 
 // parar transmissão
-function stop() {
+function stopTalking() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
   }
@@ -173,6 +193,9 @@ function stop() {
   isTalking = false;
   ws.send(JSON.stringify({type:"release"}));
   vuBar.style.width = "0%";
+
+  statusEl.innerText = "Canal livre";
+  statusEl.className = "status connected";
 }
 
 // receber dados
@@ -216,7 +239,7 @@ ws.onmessage = async (msg) => {
   }
 };
 
-// VU
+// VU meter
 function startVU() {
   const ctx = new AudioContext();
   const analyser = ctx.createAnalyser();
