@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Z-Link Talk</title>
+<title>Z-Link Talk ROIP</title>
 
 <style>
 body {
@@ -12,58 +12,24 @@ body {
   background:#000;
   color:#fff;
   text-align:center;
-
   -webkit-user-select:none;
   user-select:none;
-  -webkit-touch-callout:none;
-  touch-action:manipulation;
 }
 
 .app { padding:20px; }
 
-.status {
-  padding:6px 12px;
-  border-radius:6px;
-  display:inline-block;
-  margin-bottom:10px;
-}
-
-.connected { background:green; }
-.disconnected { background:red; }
-.tx { background:#1e90ff; }
-.busy { background:orange; }
-
-#vu {
-  width:250px;
-  height:20px;
-  background:#222;
-  margin:20px auto;
-  border-radius:10px;
-  overflow:hidden;
-}
-
-#vu-bar {
-  height:100%;
-  width:0%;
-  background:#00ff88;
-}
-
 #ptt {
-  width:200px;
-  height:200px;
+  width:220px;
+  height:220px;
   border-radius:50%;
   border:none;
-  font-size:18px;
+  font-size:20px;
   background:#1e90ff;
   color:white;
 }
 
-#ptt:active { background:#0b5ed7; }
-
-input {
-  padding:10px;
-  width:200px;
-  text-align:center;
+#status {
+  margin:10px;
 }
 </style>
 </head>
@@ -72,177 +38,107 @@ input {
 
 <div class="app">
 
-<h1>Z-Link Talk</h1>
+<h1>Z-Link ROIP</h1>
 
-<div id="status" class="status disconnected">Conectando...</div>
-
-<br><br>
-
-<input id="name" placeholder="Seu nome">
-
-<div id="vu">
-  <div id="vu-bar"></div>
-</div>
+<div id="status">Conectando...</div>
 
 <button id="ptt">SEGURE PARA FALAR</button>
-
-<p>Ou pressione F7</p>
 
 </div>
 
 <script>
-document.addEventListener("contextmenu", e => e.preventDefault());
-document.addEventListener("selectstart", e => e.preventDefault());
-
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
-let mediaRecorder;
+let pc = new RTCPeerConnection();
+let localStream;
 let isTalking = false;
-let stream;
-let keyPressed = false;
 
 const statusEl = document.getElementById("status");
-const vuBar = document.getElementById("vu-bar");
 const ptt = document.getElementById("ptt");
 
-// desbloqueio áudio
-document.body.addEventListener("click", () => {
-  new Audio().play().catch(()=>{});
+// obter microfone
+navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+  localStream = stream;
+
+  stream.getTracks().forEach(track => {
+    pc.addTrack(track, stream);
+  });
 });
 
-ws.onopen = () => {
-  statusEl.innerText = "Canal livre";
-  statusEl.className = "status connected";
+// receber áudio
+pc.ontrack = event => {
+  const audio = new Audio();
+  audio.srcObject = event.streams[0];
+  audio.play();
 };
 
-ws.onclose = () => {
-  statusEl.innerText = "Desconectado";
-  statusEl.className = "status disconnected";
+// ICE
+pc.onicecandidate = event => {
+  if (event.candidate) {
+    ws.send(JSON.stringify({ type: "ice", candidate: event.candidate }));
+  }
 };
 
-navigator.mediaDevices.getUserMedia({ audio: true })
-.then(s => {
-  stream = s;
+// websocket
+ws.onopen = async () => {
+  statusEl.innerText = "Conectado";
 
-  mediaRecorder = new MediaRecorder(stream, {
-    mimeType: "audio/webm"
-  });
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
 
-  mediaRecorder.ondataavailable = e => {
-    if (isTalking && e.data.size > 0) {
-      ws.send(e.data);
-    }
-  };
-})
-.catch(err => alert("Erro microfone: " + err));
+  ws.send(JSON.stringify({ type: "offer", offer }));
+};
 
-// PTT
-function startTalking(){
-  if(mediaRecorder && mediaRecorder.state !== "recording"){
-    mediaRecorder.start(1000); // 🔥 maior intervalo (melhor áudio)
-  }
-  ws.send(JSON.stringify({type:"request"}));
-}
+ws.onmessage = async (msg) => {
+  const data = JSON.parse(msg.data);
 
-function stopTalking(){
-  if(mediaRecorder && mediaRecorder.state === "recording"){
-    mediaRecorder.stop();
+  if (data.type === "offer") {
+    await pc.setRemoteDescription(data.offer);
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    ws.send(JSON.stringify({ type: "answer", answer }));
   }
 
-  isTalking = false;
-  ws.send(JSON.stringify({type:"release"}));
-  vuBar.style.width = "0%";
+  if (data.type === "answer") {
+    await pc.setRemoteDescription(data.answer);
+  }
 
-  statusEl.innerText = "Canal livre";
-  statusEl.className = "status connected";
-}
+  if (data.type === "ice") {
+    try {
+      await pc.addIceCandidate(data.candidate);
+    } catch {}
+  }
+};
 
-// mouse
-ptt.addEventListener("mousedown", startTalking);
-ptt.addEventListener("mouseup", stopTalking);
+// PTT (mute/unmute)
+ptt.addEventListener("mousedown", () => {
+  toggleMic(true);
+});
 
-// touch
+ptt.addEventListener("mouseup", () => {
+  toggleMic(false);
+});
+
 ptt.addEventListener("touchstart", e => {
   e.preventDefault();
-  startTalking();
+  toggleMic(true);
 });
 
 ptt.addEventListener("touchend", e => {
   e.preventDefault();
-  stopTalking();
+  toggleMic(false);
 });
 
-// teclado
-document.addEventListener("keydown", e => {
-  if (e.key === "F7" && !keyPressed) {
-    keyPressed = true;
-    startTalking();
-  }
-});
+function toggleMic(on) {
+  if (!localStream) return;
 
-document.addEventListener("keyup", e => {
-  if (e.key === "F7") {
-    keyPressed = false;
-    stopTalking();
-  }
-});
+  localStream.getAudioTracks().forEach(track => {
+    track.enabled = on;
+  });
 
-// receber
-ws.onmessage = async (msg) => {
-
-  if (typeof msg.data === "string") {
-
-    const data = JSON.parse(msg.data);
-
-    if (data.type === "granted") {
-      isTalking = true;
-      statusEl.innerText = "Transmitindo...";
-      statusEl.className = "status tx";
-      startVU();
-    }
-
-    if (data.type === "busy") {
-      statusEl.innerText = "Canal ocupado";
-      statusEl.className = "status busy";
-    }
-
-    if (data.type === "free") {
-      statusEl.innerText = "Canal livre";
-      statusEl.className = "status connected";
-    }
-
-  } else {
-    try {
-      const blob = new Blob([msg.data], { type: "audio/webm" });
-      const audio = new Audio(URL.createObjectURL(blob));
-      await audio.play();
-    } catch (e) {
-      console.log("Erro áudio:", e);
-    }
-  }
-};
-
-// VU
-function startVU(){
-  const ctx = new AudioContext();
-  const analyser = ctx.createAnalyser();
-  const source = ctx.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  function loop(){
-    if(!isTalking) return;
-
-    analyser.getByteFrequencyData(data);
-    let vol = data.reduce((a,b)=>a+b)/data.length;
-
-    vuBar.style.width = vol + "%";
-
-    requestAnimationFrame(loop);
-  }
-
-  loop();
+  statusEl.innerText = on ? "Transmitindo..." : "Escutando";
 }
 </script>
 
