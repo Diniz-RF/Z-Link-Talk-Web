@@ -1,327 +1,500 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Z-Link Talk</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Z-Link Talk</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-color: #1e1e1e;
+            --text-main: #ffffff;
+            --text-muted: #888888;
+            --btn-idle: #ff9500;
+            --btn-tx: #ff3b30;
+            --btn-rx: #34c759;
+        }
 
-<style>
-body {
-  margin:0;
-  background:#000;
-  color:#fff;
-  font-family:Arial;
-  text-align:center;
-}
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            user-select: none;
+        }
 
-.app { padding:20px; }
+        #setup-screen, #app-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-.status {
-  background:green;
-  padding:8px 14px;
-  border-radius:6px;
-  display:inline-block;
-  margin-bottom:15px;
-}
+        #app-screen {
+            display: none;
+            background-color: var(--panel-color);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            padding: 40px 20px;
+        }
 
-#vu {
-  width:260px;
-  height:20px;
-  background:#222;
-  margin:20px auto;
-  border-radius:10px;
-  overflow:hidden;
-}
+        h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
 
-#vu-bar {
-  height:100%;
-  width:0%;
-  background:#00ff88;
-}
+        #status {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
 
-#ptt {
-  width:220px;
-  height:220px;
-  border-radius:50%;
-  background:#1e90ff;
-  border:none;
-  color:#fff;
-  font-size:18px;
-}
+        .status-tx { color: var(--btn-tx) !important; }
+        .status-rx { color: var(--btn-rx) !important; }
 
-#audios { display:none; }
-</style>
+        canvas#vu-meter {
+            width: 100%;
+            height: 30px;
+            background-color: #000;
+            border-radius: 15px;
+            margin-bottom: 40px;
+            border: 2px solid #333;
+        }
+
+        #ptt-btn {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--btn-idle);
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #cc7700, 0 15px 20px rgba(0,0,0,0.4);
+            transition: all 0.1s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #ptt-btn span {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        #ptt-btn:active, #ptt-btn.active {
+            transform: translateY(8px);
+            box-shadow: 0 0 0 #cc7700, 0 5px 10px rgba(0,0,0,0.4);
+            background-color: var(--btn-tx);
+        }
+
+        #ptt-btn.receiving {
+            background-color: var(--btn-rx);
+            box-shadow: 0 8px 0 #28a745, 0 15px 20px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+
+        .btn-primary {
+            background-color: var(--btn-idle);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #audio-container {
+            display: none;
+        }
+        
+        #peer-count {
+            margin-top: 20px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+    </style>
 </head>
-
 <body>
 
-<div class="app">
-<h1>Z-Link Talk</h1>
-
-<div id="status" class="status">Iniciando...</div>
-
-<div id="vu"><div id="vu-bar"></div></div>
-
-<button id="ptt">SEGURE PARA FALAR</button>
-<p>Ou pressione F7</p>
-
-<div id="audios"></div>
-</div>
-
-<script>
-
-// =========================
-// VARIÁVEIS
-// =========================
-const ws = new WebSocket("wss://z-link-talk.onrender.com");
-
-const peers = {};
-const audioElements = {};
-
-let localStream = null;
-let myId = null;
-let keyPressed = false;
-let isTalking = false;
-
-const statusEl = document.getElementById("status");
-const vuBar = document.getElementById("vu-bar");
-const ptt = document.getElementById("ptt");
-const audiosDiv = document.getElementById("audios");
-
-// =========================
-// AUDIO CONTEXT
-// =========================
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-document.body.addEventListener("click", () => {
-  audioCtx.resume();
-});
-
-// =========================
-// INICIALIZA MICROFONE
-// =========================
-function initMic(){
-  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-    localStream = stream;
-
-    const track = stream.getAudioTracks()[0];
-    track.enabled = false;
-
-    // VU TX
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaStreamSource(stream);
-    source.connect(analyser);
-
-    const data = new Uint8Array(analyser.frequencyBinCount);
-
-    function vuTX(){
-      analyser.getByteFrequencyData(data);
-      let vol = data.reduce((a,b)=>a+b)/data.length;
-
-      if (isTalking) {
-        vuBar.style.width = (vol/2)+"%";
-      }
-
-      requestAnimationFrame(vuTX);
-    }
-
-    vuTX();
-
-  }).catch(err=>{
-    alert("Erro no microfone: " + err);
-  });
-}
-
-initMic();
-
-// =========================
-// WEBSOCKET
-// =========================
-ws.onopen = () => {
-  console.log("WS conectado");
-  statusEl.innerText = "Conectado ao servidor";
-};
-
-ws.onerror = (e) => {
-  console.error("Erro WS", e);
-  statusEl.innerText = "Erro conexão";
-};
-
-ws.onclose = () => {
-  statusEl.innerText = "Desconectado";
-};
-
-// =========================
-// CRIAR PEER
-// =========================
-function createPeer(id){
-
-  if (peers[id]) return peers[id];
-  if (!localStream) return;
-
-  const pc = new RTCPeerConnection({
-    iceServers:[{urls:"stun:stun.l.google.com:19302"}]
-  });
-
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-  pc.ontrack = (e)=>{
-    let audio = audioElements[id];
-
-    if (!audio) {
-      audio = document.createElement("audio");
-      audio.autoplay = true;
-      audio.playsInline = true;
-      audiosDiv.appendChild(audio);
-      audioElements[id] = audio;
-    }
-
-    audio.srcObject = e.streams[0];
-
-    // VU RX
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaStreamSource(e.streams[0]);
-    source.connect(analyser);
-
-    const data = new Uint8Array(analyser.frequencyBinCount);
-
-    function vuRX(){
-      analyser.getByteFrequencyData(data);
-      let vol = data.reduce((a,b)=>a+b)/data.length;
-
-      if (!isTalking) {
-        vuBar.style.width = (vol/2)+"%";
-      }
-
-      requestAnimationFrame(vuRX);
-    }
-
-    vuRX();
-  };
-
-  pc.onicecandidate = (e)=>{
-    if(e.candidate){
-      ws.send(JSON.stringify({
-        type:"ice",
-        to:id,
-        candidate:e.candidate
-      }));
-    }
-  };
-
-  peers[id] = pc;
-  return pc;
-}
-
-// =========================
-// MENSAGENS
-// =========================
-ws.onmessage = async (msg)=>{
-  const data = JSON.parse(msg.data);
-
-  if(data.type==="init"){
-    myId = data.id;
-
-    data.clients.forEach(async id=>{
-      if(id!==myId && localStream){
-        const pc = createPeer(id);
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        ws.send(JSON.stringify({
-          type:"offer",
-          to:id,
-          offer
-        }));
-      }
-    });
-  }
-
-  if(data.type==="new_peer" && localStream){
-    const pc = createPeer(data.id);
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    ws.send(JSON.stringify({
-      type:"offer",
-      to:data.id,
-      offer
-    }));
-  }
-
-  if(data.type==="offer"){
-    const pc = createPeer(data.from);
-
-    await pc.setRemoteDescription(data.offer);
-
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    ws.send(JSON.stringify({
-      type:"answer",
-      to:data.from,
-      answer
-    }));
-  }
-
-  if(data.type==="answer"){
-    if (peers[data.from]) {
-      await peers[data.from].setRemoteDescription(data.answer);
-    }
-  }
-
-  if(data.type==="ice"){
-    if (peers[data.from]) {
-      try {
-        await peers[data.from].addIceCandidate(data.candidate);
-      } catch {}
-    }
-  }
-};
-
-// =========================
-// PTT
-// =========================
-function talk(on){
-  if (!localStream) return;
-
-  isTalking = on;
-
-  localStream.getAudioTracks()[0].enabled = on;
-
-  statusEl.innerText = on ? "Transmitindo..." : "Escutando";
-}
-
-ptt.onmousedown = ()=>talk(true);
-ptt.onmouseup = ()=>talk(false);
-
-ptt.addEventListener("touchstart", e=>{
-  e.preventDefault();
-  talk(true);
-});
-
-ptt.addEventListener("touchend", e=>{
-  e.preventDefault();
-  talk(false);
-});
-
-document.addEventListener("keydown", e=>{
-  if(e.key==="F7" && !keyPressed){
-    keyPressed = true;
-    talk(true);
-  }
-});
-
-document.addEventListener("keyup", e=>{
-  if(e.key==="F7"){
-    keyPressed = false;
-    talk(false);
-  }
-});
-
-</script>
-
+    <div id="setup-screen">
+        <h1>Z-Link Talk</h1>
+        <p style="text-align: center; color: #888; margin-bottom: 30px;">Permita o uso do microfone para iniciar a comunicação PTT.</p>
+        <button class="btn-primary" id="btn-start">Conectar Dispositivo</button>
+    </div>
+
+    <div id="app-screen">
+        <h1>Z-Link Talk</h1>
+        <div id="status">Desconectado</div>
+        
+        <canvas id="vu-meter" width="300" height="30"></canvas>
+        
+        <button id="ptt-btn">
+            FALAR
+            <span>Segure ou F7</span>
+        </button>
+
+        <div id="peer-count">Usuários online: 1</div>
+        <div id="audio-container"></div>
+    </div>
+
+    <script>
+        // Configurações principais
+        const WS_URL = "wss://z-link-talk.onrender.com";
+        const AUDIO_BITRATE = 32; // kbps
+        const SUBTONE_START_FREQ = 18500;
+        const SUBTONE_END_FREQ = 17500;
+        
+        const rtcConfig = {
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        };
+
+        // Elementos da UI
+        const setupScreen = document.getElementById('setup-screen');
+        const appScreen = document.getElementById('app-screen');
+        const btnStart = document.getElementById('btn-start');
+        const pttBtn = document.getElementById('ptt-btn');
+        const statusEl = document.getElementById('status');
+        const canvasVU = document.getElementById('vu-meter');
+        const ctxVU = canvasVU.getContext('2d');
+        const peerCountEl = document.getElementById('peer-count');
+        const audioContainer = document.getElementById('audio-container');
+
+        // Variáveis Globals
+        let ws;
+        let myId = null;
+        let localStream;
+        let audioCtx;
+        let txAnalyser, rxAnalyser;
+        let peers = {}; // Guarda { pc, audioEl }
+        
+        let isTransmitting = false;
+        let rxCount = 0; // Quantos peers estão transmitindo no momento
+
+        // 1. Inicialização e captura de mídia
+        btnStart.addEventListener('click', async () => {
+            try {
+                // Configuração de áudio Mono, otimizado para voz
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        channelCount: 1
+                    }
+                });
+
+                // Mutar o microfone por padrão até apertar o PTT
+                localStream.getAudioTracks()[0].enabled = false;
+
+                // Inicializa Web Audio API (precisa ser após o clique do usuário)
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+
+                // Setup dos Analisadores (VU Meter)
+                txAnalyser = audioCtx.createAnalyser();
+                rxAnalyser = audioCtx.createAnalyser();
+                txAnalyser.fftSize = 256;
+                rxAnalyser.fftSize = 256;
+
+                // Conecta microfone local ao TX Analyser
+                const source = audioCtx.createMediaStreamSource(localStream);
+                source.connect(txAnalyser);
+
+                // Alternar telas
+                setupScreen.style.display = 'none';
+                appScreen.style.display = 'flex';
+                
+                startVUMeter();
+                connectWebSocket();
+
+            } catch (err) {
+                alert('Erro ao acessar o microfone: ' + err.message);
+            }
+        });
+
+        // 2. Lógica do Servidor WebSocket
+        function connectWebSocket() {
+            statusEl.innerText = "Conectando ao Servidor...";
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                statusEl.innerText = "Escutando";
+            };
+
+            ws.onmessage = async (event) => {
+                const data = JSON.parse(event.data);
+                const senderId = data.from || data.id;
+
+                switch (data.type) {
+                    case "init":
+                        myId = data.id;
+                        // Iniciar conexões com quem já está na sala
+                        data.clients.forEach(clientId => {
+                            if (clientId !== myId) createPeerConnection(clientId, true);
+                        });
+                        updatePeerCount(data.clients.length);
+                        break;
+
+                    case "new_peer":
+                        updatePeerCount(Object.keys(peers).length + 2); // +1 do novo, +1 de mim
+                        // Quem recebe 'new_peer' apenas aguarda a oferta do novo usuário para não gerar colisão (glare)
+                        break;
+
+                    case "offer":
+                        if (!peers[senderId]) await createPeerConnection(senderId, false);
+                        await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                        const answer = await peers[senderId].pc.createAnswer();
+                        answer.sdp = setAudioBitrate(answer.sdp, AUDIO_BITRATE);
+                        await peers[senderId].pc.setLocalDescription(answer);
+                        ws.send(JSON.stringify({ type: "answer", to: senderId, answer: peers[senderId].pc.localDescription }));
+                        break;
+
+                    case "answer":
+                        if (peers[senderId]) {
+                            await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                        }
+                        break;
+
+                    case "ice_candidate":
+                        if (peers[senderId]) {
+                            await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+                        }
+                        break;
+
+                    case "start_tx":
+                        handleRemoteTX(true, senderId);
+                        break;
+
+                    case "stop_tx":
+                        handleRemoteTX(false, senderId);
+                        break;
+
+                    case "peer_left":
+                        if (peers[data.id]) {
+                            if (peers[data.id].audioEl) peers[data.id].audioEl.remove();
+                            peers[data.id].pc.close();
+                            delete peers[data.id];
+                        }
+                        updatePeerCount(Object.keys(peers).length + 1);
+                        break;
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.innerText = "Desconectado";
+                statusEl.className = "";
+                setTimeout(connectWebSocket, 3000); // Tenta reconectar
+            };
+        }
+
+        // 3. WebRTC e Criação de Peers
+        async function createPeerConnection(peerId, isInitiator) {
+            const pc = new RTCPeerConnection(rtcConfig);
+            peers[peerId] = { pc, audioEl: null };
+
+            // Adicionar trilha do microfone local à conexão
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: event.candidate }));
+                }
+            };
+
+            pc.ontrack = (event) => {
+                if (!peers[peerId].audioEl) {
+                    const audio = document.createElement('audio');
+                    audio.autoplay = true;
+                    audio.playsInline = true;
+                    audio.srcObject = event.streams[0];
+                    audioContainer.appendChild(audio);
+                    peers[peerId].audioEl = audio;
+
+                    // Conectar o áudio remoto ao RX Analyser para o VU Meter
+                    const source = audioCtx.createMediaStreamSource(event.streams[0]);
+                    source.connect(rxAnalyser);
+                }
+            };
+
+            if (isInitiator) {
+                const offer = await pc.createOffer();
+                offer.sdp = setAudioBitrate(offer.sdp, AUDIO_BITRATE);
+                await pc.setLocalDescription(offer);
+                ws.send(JSON.stringify({ type: "offer", to: peerId, offer: pc.localDescription }));
+            }
+        }
+
+        // Função para forçar limite de bitrate no SDP (~32kbps)
+        function setAudioBitrate(sdp, bitrate) {
+            return sdp.replace(/a=fmtp:111(.*)\r\n/g, 'a=fmtp:111$1;maxaveragebitrate=' + (bitrate * 1000) + '\r\n');
+        }
+
+        function updatePeerCount(count) {
+            peerCountEl.innerText = `Usuários online: ${count}`;
+        }
+
+        // 4. Lógica de Push-To-Talk (PTT)
+        function startPTT() {
+            if (isTransmitting || rxCount > 0) return; // Bloqueia TX se estiver recebendo
+            isTransmitting = true;
+            
+            // Habilita a captura do mic
+            localStream.getAudioTracks()[0].enabled = true;
+            
+            // Atualiza UI
+            pttBtn.classList.add('active');
+            pttBtn.innerHTML = `TRANSMITINDO<span>Solte para escutar</span>`;
+            statusEl.innerText = "Transmitindo...";
+            statusEl.className = "status-tx";
+
+            // Envia sinalização via WebSocket
+            ws.send(JSON.stringify({ type: "start_tx" }));
+        }
+
+        function stopPTT() {
+            if (!isTransmitting) return;
+            isTransmitting = false;
+
+            // Desabilita a captura do mic
+            localStream.getAudioTracks()[0].enabled = false;
+            
+            // Atualiza UI
+            pttBtn.classList.remove('active');
+            pttBtn.innerHTML = `FALAR<span>Segure ou F7</span>`;
+            statusEl.innerText = "Escutando";
+            statusEl.className = "";
+
+            // Envia sinalização via WebSocket
+            ws.send(JSON.stringify({ type: "stop_tx" }));
+        }
+
+        // Eventos do Botão PTT (Mouse/Touch)
+        pttBtn.addEventListener('mousedown', startPTT);
+        pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startPTT(); }, {passive: false});
+        
+        window.addEventListener('mouseup', stopPTT);
+        window.addEventListener('touchend', stopPTT);
+
+        // Evento da Tecla F7
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F7' && !e.repeat) {
+                e.preventDefault();
+                startPTT();
+            }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'F7') {
+                e.preventDefault();
+                stopPTT();
+            }
+        });
+
+        // 5. Lógica de Recepção e Subtons (Web Audio API)
+        function handleRemoteTX(isStart, senderId) {
+            if (isStart) {
+                rxCount++;
+                generateSubtone(SUBTONE_START_FREQ, 50); // Início: 18.5 kHz / 50ms
+                
+                statusEl.innerText = "Recebendo...";
+                statusEl.className = "status-rx";
+                pttBtn.classList.add('receiving');
+                pttBtn.innerHTML = `RECEBENDO<span>Aguarde</span>`;
+            } else {
+                rxCount = Math.max(0, rxCount - 1);
+                generateSubtone(SUBTONE_END_FREQ, 100); // Final: 17.5 kHz / 100ms
+                
+                if (rxCount === 0) {
+                    statusEl.innerText = "Escutando";
+                    statusEl.className = "";
+                    pttBtn.classList.remove('receiving');
+                    pttBtn.innerHTML = `FALAR<span>Segure ou F7</span>`;
+                }
+            }
+        }
+
+        function generateSubtone(frequency, durationMs) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            
+            // Volume moderado para evitar clipping e garantir precisão da onda
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); 
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + (durationMs / 1000));
+        }
+
+        // 6. VU Meter Visualizer (Tempo Real)
+        function startVUMeter() {
+            const dataArray = new Uint8Array(256);
+            
+            function draw() {
+                requestAnimationFrame(draw);
+                
+                // Escolhe qual analisador ler: TX se transmitindo, RX se recebendo
+                const activeAnalyser = isTransmitting ? txAnalyser : rxAnalyser;
+                activeAnalyser.getByteFrequencyData(dataArray);
+
+                // Calcula uma média simples das frequências vocais
+                let sum = 0;
+                for(let i = 0; i < 50; i++) { sum += dataArray[i]; }
+                let average = sum / 50;
+
+                // Limpa o canvas
+                ctxVU.fillStyle = '#111';
+                ctxVU.fillRect(0, 0, canvasVU.width, canvasVU.height);
+
+                // Desenha a barra de volume
+                let width = (average / 255) * canvasVU.width;
+                
+                // Cores do VU (Verde no RX, Vermelho no TX, Laranja no Idle)
+                if (isTransmitting) {
+                    ctxVU.fillStyle = 'rgba(255, 59, 48, 0.8)'; // Vermelho
+                } else if (rxCount > 0) {
+                    ctxVU.fillStyle = 'rgba(52, 199, 89, 0.8)'; // Verde
+                } else {
+                    width = 0; // Silêncio visual se não tem áudio ativo
+                }
+
+                ctxVU.fillRect(0, 0, width, canvasVU.height);
+                
+                // Adicionar "leds" divisórios estilo rádio hardware
+                ctxVU.fillStyle = '#000';
+                for(let i = 1; i < 20; i++) {
+                    ctxVU.fillRect(i * (canvasVU.width / 20), 0, 2, canvasVU.height);
+                }
+            }
+            draw();
+        }
+    </script>
 </body>
 </html>
