@@ -29,23 +29,18 @@
             user-select: none;
         }
 
-        #setup-screen, #app-screen {
+        #app-screen {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             width: 100%;
             max-width: 400px;
-            padding: 20px;
+            padding: 40px 20px;
             box-sizing: border-box;
-        }
-
-        #app-screen {
-            display: none;
             background-color: var(--panel-color);
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            padding: 40px 20px;
         }
 
         h1 {
@@ -93,6 +88,8 @@
             justify-content: center;
             outline: none;
             -webkit-tap-highlight-color: transparent;
+            /* CRÍTICO PARA ANDROID: Evita zoom, scroll ou gestures travando o botão */
+            touch-action: none; 
         }
 
         #ptt-btn span {
@@ -114,17 +111,6 @@
             pointer-events: none;
         }
 
-        .btn-primary {
-            background-color: var(--btn-idle);
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
         #audio-container {
             display: none;
         }
@@ -138,15 +124,9 @@
 </head>
 <body>
 
-    <div id="setup-screen">
-        <h1>Z-Link Talk</h1>
-        <p style="text-align: center; color: #888; margin-bottom: 30px;">Permita o uso do microfone para iniciar a comunicação PTT.</p>
-        <button class="btn-primary" id="btn-start">Conectar Dispositivo</button>
-    </div>
-
     <div id="app-screen">
         <h1>Z-Link Talk</h1>
-        <div id="status">Desconectado</div>
+        <div id="status">Aguardando Microfone...</div>
         
         <canvas id="vu-meter" width="300" height="30"></canvas>
         
@@ -171,9 +151,7 @@
         };
 
         // Elementos da UI
-        const setupScreen = document.getElementById('setup-screen');
         const appScreen = document.getElementById('app-screen');
-        const btnStart = document.getElementById('btn-start');
         const pttBtn = document.getElementById('ptt-btn');
         const statusEl = document.getElementById('status');
         const canvasVU = document.getElementById('vu-meter');
@@ -190,10 +168,11 @@
         let peers = {}; // Guarda { pc, audioEl }
         
         let isTransmitting = false;
+        let pttPressed = false; // Controle de estado para evitar eventos duplicados
         let rxCount = 0; // Quantos peers estão transmitindo no momento
 
-        // 1. Inicialização e captura de mídia
-        btnStart.addEventListener('click', async () => {
+        // 1. Inicialização Automática e captura de mídia
+        window.addEventListener('load', async () => {
             try {
                 // Configuração de áudio Mono, otimizado para voz
                 localStream = await navigator.mediaDevices.getUserMedia({
@@ -208,7 +187,7 @@
                 // Mutar o microfone por padrão até apertar o PTT
                 localStream.getAudioTracks()[0].enabled = false;
 
-                // Inicializa Web Audio API (precisa ser após o clique do usuário)
+                // Inicializa Web Audio API
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
 
@@ -221,16 +200,14 @@
                 // Conecta microfone local ao TX Analyser
                 const source = audioCtx.createMediaStreamSource(localStream);
                 source.connect(txAnalyser);
-
-                // Alternar telas
-                setupScreen.style.display = 'none';
-                appScreen.style.display = 'flex';
                 
                 startVUMeter();
                 connectWebSocket();
 
             } catch (err) {
-                alert('Erro ao acessar o microfone: ' + err.message);
+                alert('Erro ao acessar o microfone. O aplicativo precisa dessa permissão para funcionar. ' + err.message);
+                statusEl.innerText = "Erro de Permissão";
+                statusEl.style.color = "red";
             }
         });
 
@@ -259,7 +236,7 @@
 
                     case "new_peer":
                         updatePeerCount(Object.keys(peers).length + 2); // +1 do novo, +1 de mim
-                        // Quem recebe 'new_peer' apenas aguarda a oferta do novo usuário para não gerar colisão (glare)
+                        // Quem recebe 'new_peer' apenas aguarda a oferta
                         break;
 
                     case "offer":
@@ -346,7 +323,6 @@
             }
         }
 
-        // Função para forçar limite de bitrate no SDP (~32kbps)
         function setAudioBitrate(sdp, bitrate) {
             return sdp.replace(/a=fmtp:111(.*)\r\n/g, 'a=fmtp:111$1;maxaveragebitrate=' + (bitrate * 1000) + '\r\n');
         }
@@ -355,9 +331,22 @@
             peerCountEl.innerText = `Usuários online: ${count}`;
         }
 
-        // 4. Lógica de Push-To-Talk (PTT)
-        function startPTT() {
-            if (isTransmitting || rxCount > 0) return; // Bloqueia TX se estiver recebendo
+        // 4. Lógica de Push-To-Talk (PTT) Melhorada (Pointer Events)
+        function startPTT(e) {
+            // Em mobile/gestures, capta o pointer para garantir que não se perca o elemento
+            if (e && e.pointerId) {
+                pttBtn.setPointerCapture(e.pointerId);
+            }
+
+            if (pttPressed || isTransmitting || rxCount > 0) return; // Bloqueia múltiplas execuções ou TX se estiver recebendo
+            
+            // Hack de permissão: Chrome/Safari exige interação do usuário para tocar sons/WebAudio.
+            // Ao iniciar a transmissão, garantimos que o AudioContext "acorde".
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            pttPressed = true;
             isTransmitting = true;
             
             // Habilita a captura do mic
@@ -373,8 +362,15 @@
             ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
-        function stopPTT() {
-            if (!isTransmitting) return;
+        function stopPTT(e) {
+            // Libera a captura do pointer se estiver preso no elemento
+            if (e && e.pointerId && pttBtn.hasPointerCapture(e.pointerId)) {
+                pttBtn.releasePointerCapture(e.pointerId);
+            }
+
+            if (!pttPressed || !isTransmitting) return; // Só para se estiver realmente transmitindo
+            
+            pttPressed = false;
             isTransmitting = false;
 
             // Desabilita a captura do mic
@@ -390,12 +386,14 @@
             ws.send(JSON.stringify({ type: "stop_tx" }));
         }
 
-        // Eventos do Botão PTT (Mouse/Touch)
-        pttBtn.addEventListener('mousedown', startPTT);
-        pttBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startPTT(); }, {passive: false});
+        // Novos Eventos Modernos (Pointer Events substitui mouse e touch)
+        pttBtn.addEventListener('pointerdown', startPTT);
+        pttBtn.addEventListener('pointerup', stopPTT);
+        pttBtn.addEventListener('pointercancel', stopPTT);
+        pttBtn.addEventListener('pointerleave', stopPTT);
         
-        window.addEventListener('mouseup', stopPTT);
-        window.addEventListener('touchend', stopPTT);
+        // Failsafe Global: Garante que pare se soltar fora do botão ou o navegador bugar
+        window.addEventListener('pointerup', stopPTT);
 
         // Evento da Tecla F7
         window.addEventListener('keydown', (e) => {
@@ -436,14 +434,13 @@
         }
 
         function generateSubtone(frequency, durationMs) {
-            if (!audioCtx) return;
+            if (!audioCtx || audioCtx.state === 'suspended') return;
             const osc = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             
             osc.type = 'sine';
             osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
             
-            // Volume moderado para evitar clipping e garantir precisão da onda
             gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime); 
 
             osc.connect(gainNode);
@@ -464,7 +461,7 @@
                 const activeAnalyser = isTransmitting ? txAnalyser : rxAnalyser;
                 activeAnalyser.getByteFrequencyData(dataArray);
 
-                // Calcula uma média simples das frequências vocais
+                // Calcula uma média simples
                 let sum = 0;
                 for(let i = 0; i < 50; i++) { sum += dataArray[i]; }
                 let average = sum / 50;
@@ -473,21 +470,20 @@
                 ctxVU.fillStyle = '#111';
                 ctxVU.fillRect(0, 0, canvasVU.width, canvasVU.height);
 
-                // Desenha a barra de volume
                 let width = (average / 255) * canvasVU.width;
                 
-                // Cores do VU (Verde no RX, Vermelho no TX, Laranja no Idle)
+                // Cores do VU
                 if (isTransmitting) {
                     ctxVU.fillStyle = 'rgba(255, 59, 48, 0.8)'; // Vermelho
                 } else if (rxCount > 0) {
                     ctxVU.fillStyle = 'rgba(52, 199, 89, 0.8)'; // Verde
                 } else {
-                    width = 0; // Silêncio visual se não tem áudio ativo
+                    width = 0;
                 }
 
                 ctxVU.fillRect(0, 0, width, canvasVU.height);
                 
-                // Adicionar "leds" divisórios estilo rádio hardware
+                // Leds divisórios
                 ctxVU.fillStyle = '#000';
                 for(let i = 1; i < 20; i++) {
                     ctxVU.fillRect(i * (canvasVU.width / 20), 0, 2, canvasVU.height);
