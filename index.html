@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-Link Talk</title>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0d0d0d;
+  color:#fff;
+  text-align:center;
+}
+
+.app-container {
+  padding:20px;
+}
+
+.status {
+  padding:5px 10px;
+  border-radius:5px;
+}
+
+.disconnected { background:red; }
+.connected { background:green; }
+
+.channel-control {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  margin:20px;
+}
+
+.ch-btn {
+  padding:10px;
+  font-size:18px;
+}
+
+.channel-display {
+  margin:0 20px;
+}
+
+#vu {
+  width:200px;
+  height:20px;
+  background:#222;
+  margin:20px auto;
+  border-radius:10px;
+  overflow:hidden;
+}
+
+#vu-bar {
+  height:100%;
+  width:0%;
+  background:#00ff88;
+}
+
+.ptt-container {
+  margin-top:30px;
+}
+
+#ptt-btn {
+  width:200px;
+  height:200px;
+  border-radius:50%;
+  border:none;
+  font-size:20px;
+  background:#1e90ff;
+  color:white;
+}
+
+#ptt-btn:active {
+  background:#0b5ed7;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app-container">
+
+<h1>Z-Link Talk</h1>
+<p>Desenvolvido por Diniz-RF</p>
+
+<div>
+  <span id="connection-status" class="status disconnected">Desconectado</span>
+</div>
+
+<br>
+
+<input id="username" placeholder="Seu nome" />
+
+<div class="channel-control">
+  <button id="btn-ch-down">CH -</button>
+  <div>
+    <h2 id="channel-name">CH 1</h2>
+    <p id="user-count">• Canal único</p>
+  </div>
+  <button id="btn-ch-up">CH +</button>
+</div>
+
+<div id="vu">
+  <div id="vu-bar"></div>
+</div>
+
+<div class="ptt-container">
+  <button id="ptt-btn">SEGURE PARA FALAR</button>
+</div>
+
+<p>Pressione e segure o botão ou F7</p>
+
+</div>
+
+<script>
+const ws = new WebSocket("wss://z-link-talk.onrender.com");
+
+const statusEl = document.getElementById("connection-status");
+const ptt = document.getElementById("ptt-btn");
+const nameInput = document.getElementById("username");
+
+let mediaRecorder;
+let isTalking = false;
+
+// conexão
+ws.onopen = () => {
+  statusEl.innerText = "Conectado";
+  statusEl.classList.remove("disconnected");
+  statusEl.classList.add("connected");
+};
+
+ws.onclose = () => {
+  statusEl.innerText = "Desconectado";
+};
+
+// microfone + VU
+navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+
+  const audioContext = new AudioContext();
+  const analyser = audioContext.createAnalyser();
+  const mic = audioContext.createMediaStreamSource(stream);
+  mic.connect(analyser);
+
+  const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+  function updateVU() {
+    analyser.getByteFrequencyData(dataArray);
+    let volume = dataArray.reduce((a,b)=>a+b)/dataArray.length;
+    document.getElementById("vu-bar").style.width = volume + "%";
+    requestAnimationFrame(updateVU);
+  }
+  updateVU();
+
+  mediaRecorder = new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = e => {
+    if(isTalking) ws.send(e.data);
+  };
+});
+
+// botão PTT
+ptt.onmousedown = () => {
+  ws.send(JSON.stringify({type:"request", name: nameInput.value}));
+};
+
+ptt.onmouseup = () => {
+  isTalking = false;
+  ws.send(JSON.stringify({type:"release"}));
+};
+
+// tecla F7
+document.addEventListener("keydown", e => {
+  if(e.key === "F7") {
+    ws.send(JSON.stringify({type:"request", name: nameInput.value}));
+  }
+});
+
+document.addEventListener("keyup", e => {
+  if(e.key === "F7") {
+    isTalking = false;
+    ws.send(JSON.stringify({type:"release"}));
+  }
+});
+
+// receber dados
+ws.onmessage = async (msg) => {
+
+  if(typeof msg.data === "string") {
+    const data = JSON.parse(msg.data);
+
+    if(data.type === "granted") {
+      isTalking = true;
+      mediaRecorder.start(200);
+      statusEl.innerText = "Transmitindo...";
+    }
+
+    if(data.type === "busy") {
+      statusEl.innerText = "Canal ocupado";
+    }
+
+    if(data.type === "free") {
+      statusEl.innerText = "Canal livre";
+    }
+
+  } else {
+    const audio = new Audio(URL.createObjectURL(msg.data));
+    audio.play();
+  }
+
+};
+</script>
+
+</body>
+</html>

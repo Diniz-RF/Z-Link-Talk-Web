@@ -1,0 +1,127 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: #0d1117;
+    font-family: Arial, sans-serif;
+    color: #fff;
+}
+
+.app-container {
+    max-width: 400px;
+    margin: auto;
+    padding: 20px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 24px;
+}
+
+.subtitle {
+    font-size: 12px;
+    color: #aaa;
+}
+
+.status-bar {
+    margin: 15px 0;
+}
+
+.status {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.connected {
+    background: #0f5132;
+    color: #0f0;
+}
+
+.disconnected {
+    background: #842029;
+    color: #ff4d4d;
+}
+
+.reconnecting {
+    background: #664d03;
+    color: #ffc107;
+}
+
+/* CANAIS */
+
+.channel-control {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.ch-btn {
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: #21262d;
+    color: white;
+}
+
+.channel-display h2 {
+    font-size: 22px;
+}
+
+.channel-display p {
+    font-size: 12px;
+    color: #aaa;
+}
+
+/* VU METER */
+
+.vu-meter-container {
+    margin: 20px 0;
+}
+
+#vu-meter {
+    background: #111;
+    border-radius: 10px;
+}
+
+/* PTT */
+
+.ptt-container {
+    margin: 30px 0;
+}
+
+.ptt {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: none;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    background: #444;
+    transition: 0.2s;
+}
+
+.ptt.idle {
+    background: #444;
+}
+
+.ptt.tx {
+    background: red;
+    transform: scale(1.1);
+}
+
+.ptt.rx {
+    background: green;
+}
+
+/* INSTRUÇÕES */
+
+.instructions {
+    font-size: 12px;
+    color: #aaa;
+}
