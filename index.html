@@ -8,27 +8,29 @@
 <style>
 body {
   margin:0;
-  font-family: Arial;
   background:#000;
   color:#fff;
+  font-family:Arial;
   text-align:center;
 }
 
 .app { padding:20px; }
 
 .status {
-  padding:8px;
   background:green;
-  margin-bottom:15px;
+  padding:8px 14px;
+  border-radius:6px;
   display:inline-block;
+  margin-bottom:15px;
 }
 
 #vu {
-  width:250px;
+  width:260px;
   height:20px;
   background:#222;
   margin:20px auto;
   border-radius:10px;
+  overflow:hidden;
 }
 
 #vu-bar {
@@ -38,84 +40,166 @@ body {
 }
 
 #ptt {
-  width:200px;
-  height:200px;
+  width:220px;
+  height:220px;
   border-radius:50%;
   background:#1e90ff;
   border:none;
   color:#fff;
   font-size:18px;
 }
+
+#audios { display:none; }
 </style>
 </head>
 
 <body>
 
 <div class="app">
-
 <h1>Z-Link Talk</h1>
 
-<div id="status" class="status">Conectando...</div>
+<div id="status" class="status">Iniciando...</div>
 
 <div id="vu"><div id="vu-bar"></div></div>
 
 <button id="ptt">SEGURE PARA FALAR</button>
+<p>Ou pressione F7</p>
 
-<p>Ou F7</p>
-
-<audio id="remoteAudio" autoplay></audio>
-
+<div id="audios"></div>
 </div>
 
 <script>
+
+// =========================
+// VARIÁVEIS
+// =========================
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
-let peers = {};
-let localStream;
-let myId;
+const peers = {};
+const audioElements = {};
+
+let localStream = null;
+let myId = null;
 let keyPressed = false;
+let isTalking = false;
 
 const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
 const ptt = document.getElementById("ptt");
+const audiosDiv = document.getElementById("audios");
 
-const audioCtx = new AudioContext();
+// =========================
+// AUDIO CONTEXT
+// =========================
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-function playTone(freq, duration){
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-
-  osc.frequency.value = freq;
-  gain.gain.value = 0.2;
-
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-
-  osc.start();
-  osc.stop(audioCtx.currentTime + duration/1000);
-}
-
-// microfone
-navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-  localStream = stream;
-  stream.getAudioTracks()[0].enabled = false;
+document.body.addEventListener("click", () => {
+  audioCtx.resume();
 });
 
-// criar conexão
+// =========================
+// INICIALIZA MICROFONE
+// =========================
+function initMic(){
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    localStream = stream;
+
+    const track = stream.getAudioTracks()[0];
+    track.enabled = false;
+
+    // VU TX
+    const analyser = audioCtx.createAnalyser();
+    const source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    function vuTX(){
+      analyser.getByteFrequencyData(data);
+      let vol = data.reduce((a,b)=>a+b)/data.length;
+
+      if (isTalking) {
+        vuBar.style.width = (vol/2)+"%";
+      }
+
+      requestAnimationFrame(vuTX);
+    }
+
+    vuTX();
+
+  }).catch(err=>{
+    alert("Erro no microfone: " + err);
+  });
+}
+
+initMic();
+
+// =========================
+// WEBSOCKET
+// =========================
+ws.onopen = () => {
+  console.log("WS conectado");
+  statusEl.innerText = "Conectado ao servidor";
+};
+
+ws.onerror = (e) => {
+  console.error("Erro WS", e);
+  statusEl.innerText = "Erro conexão";
+};
+
+ws.onclose = () => {
+  statusEl.innerText = "Desconectado";
+};
+
+// =========================
+// CRIAR PEER
+// =========================
 function createPeer(id){
+
+  if (peers[id]) return peers[id];
+  if (!localStream) return;
+
   const pc = new RTCPeerConnection({
     iceServers:[{urls:"stun:stun.l.google.com:19302"}]
   });
 
-  localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
-  pc.ontrack = e=>{
-    const audio = new Audio();
+  pc.ontrack = (e)=>{
+    let audio = audioElements[id];
+
+    if (!audio) {
+      audio = document.createElement("audio");
+      audio.autoplay = true;
+      audio.playsInline = true;
+      audiosDiv.appendChild(audio);
+      audioElements[id] = audio;
+    }
+
     audio.srcObject = e.streams[0];
-    audio.play();
+
+    // VU RX
+    const analyser = audioCtx.createAnalyser();
+    const source = audioCtx.createMediaStreamSource(e.streams[0]);
+    source.connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    function vuRX(){
+      analyser.getByteFrequencyData(data);
+      let vol = data.reduce((a,b)=>a+b)/data.length;
+
+      if (!isTalking) {
+        vuBar.style.width = (vol/2)+"%";
+      }
+
+      requestAnimationFrame(vuRX);
+    }
+
+    vuRX();
   };
 
-  pc.onicecandidate = e=>{
+  pc.onicecandidate = (e)=>{
     if(e.candidate){
       ws.send(JSON.stringify({
         type:"ice",
@@ -125,22 +209,24 @@ function createPeer(id){
     }
   };
 
-  peers[id]=pc;
+  peers[id] = pc;
   return pc;
 }
 
-// mensagens
-ws.onmessage = async msg=>{
+// =========================
+// MENSAGENS
+// =========================
+ws.onmessage = async (msg)=>{
   const data = JSON.parse(msg.data);
 
   if(data.type==="init"){
     myId = data.id;
-    statusEl.innerText="Conectado";
 
-    data.clients.forEach(id=>{
-      if(id!==myId){
-        const pc=createPeer(id);
-        const offer=await pc.createOffer();
+    data.clients.forEach(async id=>{
+      if(id!==myId && localStream){
+        const pc = createPeer(id);
+
+        const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
 
         ws.send(JSON.stringify({
@@ -152,10 +238,10 @@ ws.onmessage = async msg=>{
     });
   }
 
-  if(data.type==="new_peer"){
-    const pc=createPeer(data.id);
+  if(data.type==="new_peer" && localStream){
+    const pc = createPeer(data.id);
 
-    const offer=await pc.createOffer();
+    const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
     ws.send(JSON.stringify({
@@ -166,11 +252,11 @@ ws.onmessage = async msg=>{
   }
 
   if(data.type==="offer"){
-    const pc=createPeer(data.from);
+    const pc = createPeer(data.from);
 
     await pc.setRemoteDescription(data.offer);
 
-    const answer=await pc.createAnswer();
+    const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
     ws.send(JSON.stringify({
@@ -181,55 +267,60 @@ ws.onmessage = async msg=>{
   }
 
   if(data.type==="answer"){
-    await peers[data.from].setRemoteDescription(data.answer);
+    if (peers[data.from]) {
+      await peers[data.from].setRemoteDescription(data.answer);
+    }
   }
 
   if(data.type==="ice"){
-    try{
-      await peers[data.from].addIceCandidate(data.candidate);
-    }catch{}
-  }
-
-  if(data.type==="start_tx"){
-    playTone(18500,50);
-    statusEl.innerText="Recebendo...";
-  }
-
-  if(data.type==="stop_tx"){
-    playTone(17500,100);
-    statusEl.innerText="Escutando";
+    if (peers[data.from]) {
+      try {
+        await peers[data.from].addIceCandidate(data.candidate);
+      } catch {}
+    }
   }
 };
 
+// =========================
 // PTT
+// =========================
 function talk(on){
-  localStream.getAudioTracks()[0].enabled=on;
+  if (!localStream) return;
 
-  if(on){
-    ws.send(JSON.stringify({type:"start_tx"}));
-    statusEl.innerText="Transmitindo...";
-  }else{
-    ws.send(JSON.stringify({type:"stop_tx"}));
-    statusEl.innerText="Escutando";
-  }
+  isTalking = on;
+
+  localStream.getAudioTracks()[0].enabled = on;
+
+  statusEl.innerText = on ? "Transmitindo..." : "Escutando";
 }
 
-ptt.onmousedown=()=>talk(true);
-ptt.onmouseup=()=>talk(false);
+ptt.onmousedown = ()=>talk(true);
+ptt.onmouseup = ()=>talk(false);
 
-document.addEventListener("keydown",e=>{
-  if(e.key==="F7"&&!keyPressed){
-    keyPressed=true;
+ptt.addEventListener("touchstart", e=>{
+  e.preventDefault();
+  talk(true);
+});
+
+ptt.addEventListener("touchend", e=>{
+  e.preventDefault();
+  talk(false);
+});
+
+document.addEventListener("keydown", e=>{
+  if(e.key==="F7" && !keyPressed){
+    keyPressed = true;
     talk(true);
   }
 });
 
-document.addEventListener("keyup",e=>{
+document.addEventListener("keyup", e=>{
   if(e.key==="F7"){
-    keyPressed=false;
+    keyPressed = false;
     talk(false);
   }
 });
+
 </script>
 
 </body>
