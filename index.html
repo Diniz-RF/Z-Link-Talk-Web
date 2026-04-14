@@ -13,16 +13,13 @@ body {
   color:#fff;
   text-align:center;
 
-  /* BLOQUEIO MOBILE */
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
+  -webkit-user-select:none;
+  user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:manipulation;
 }
 
-.app {
-  padding:20px;
-}
+.app { padding:20px; }
 
 .status {
   padding:6px 12px;
@@ -59,16 +56,9 @@ body {
   font-size:18px;
   background:#1e90ff;
   color:white;
-
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  touch-action: manipulation;
 }
 
-#ptt:active {
-  background:#0b5ed7;
-}
+#ptt:active { background:#0b5ed7; }
 
 input {
   padding:10px;
@@ -101,7 +91,6 @@ input {
 </div>
 
 <script>
-// BLOQUEIOS GERAIS
 document.addEventListener("contextmenu", e => e.preventDefault());
 document.addEventListener("selectstart", e => e.preventDefault());
 
@@ -116,12 +105,11 @@ const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
 const ptt = document.getElementById("ptt");
 
-// desbloqueia áudio
+// desbloqueio áudio
 document.body.addEventListener("click", () => {
   new Audio().play().catch(()=>{});
 });
 
-// conexão
 ws.onopen = () => {
   statusEl.innerText = "Canal livre";
   statusEl.className = "status connected";
@@ -132,7 +120,6 @@ ws.onclose = () => {
   statusEl.className = "status disconnected";
 };
 
-// microfone
 navigator.mediaDevices.getUserMedia({ audio: true })
 .then(s => {
   stream = s;
@@ -147,46 +134,18 @@ navigator.mediaDevices.getUserMedia({ audio: true })
     }
   };
 })
-.catch(err => {
-  alert("Erro microfone: " + err);
-});
+.catch(err => alert("Erro microfone: " + err));
 
-// PTT mouse
-ptt.addEventListener("mousedown", () => {
-  ws.send(JSON.stringify({type:"request"}));
-});
-
-ptt.addEventListener("mouseup", stopTalking);
-
-// PTT touch
-ptt.addEventListener("touchstart", (e) => {
-  e.preventDefault();
-  ws.send(JSON.stringify({type:"request"}));
-});
-
-ptt.addEventListener("touchend", (e) => {
-  e.preventDefault();
-  stopTalking();
-});
-
-// teclado F7
-document.addEventListener("keydown", e => {
-  if (e.key === "F7" && !keyPressed) {
-    keyPressed = true;
-    ws.send(JSON.stringify({type:"request"}));
+// PTT
+function startTalking(){
+  if(mediaRecorder && mediaRecorder.state !== "recording"){
+    mediaRecorder.start(1000); // 🔥 maior intervalo (melhor áudio)
   }
-});
+  ws.send(JSON.stringify({type:"request"}));
+}
 
-document.addEventListener("keyup", e => {
-  if (e.key === "F7") {
-    keyPressed = false;
-    stopTalking();
-  }
-});
-
-// parar transmissão
-function stopTalking() {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
+function stopTalking(){
+  if(mediaRecorder && mediaRecorder.state === "recording"){
     mediaRecorder.stop();
   }
 
@@ -198,7 +157,37 @@ function stopTalking() {
   statusEl.className = "status connected";
 }
 
-// receber dados
+// mouse
+ptt.addEventListener("mousedown", startTalking);
+ptt.addEventListener("mouseup", stopTalking);
+
+// touch
+ptt.addEventListener("touchstart", e => {
+  e.preventDefault();
+  startTalking();
+});
+
+ptt.addEventListener("touchend", e => {
+  e.preventDefault();
+  stopTalking();
+});
+
+// teclado
+document.addEventListener("keydown", e => {
+  if (e.key === "F7" && !keyPressed) {
+    keyPressed = true;
+    startTalking();
+  }
+});
+
+document.addEventListener("keyup", e => {
+  if (e.key === "F7") {
+    keyPressed = false;
+    stopTalking();
+  }
+});
+
+// receber
 ws.onmessage = async (msg) => {
 
   if (typeof msg.data === "string") {
@@ -207,11 +196,8 @@ ws.onmessage = async (msg) => {
 
     if (data.type === "granted") {
       isTalking = true;
-      mediaRecorder.start(200);
-
       statusEl.innerText = "Transmitindo...";
       statusEl.className = "status tx";
-
       startVU();
     }
 
@@ -228,19 +214,16 @@ ws.onmessage = async (msg) => {
   } else {
     try {
       const blob = new Blob([msg.data], { type: "audio/webm" });
-      const url = URL.createObjectURL(blob);
-
-      const audio = new Audio(url);
-      audio.play().catch(err => console.log(err));
-
+      const audio = new Audio(URL.createObjectURL(blob));
+      await audio.play();
     } catch (e) {
       console.log("Erro áudio:", e);
     }
   }
 };
 
-// VU meter
-function startVU() {
+// VU
+function startVU(){
   const ctx = new AudioContext();
   const analyser = ctx.createAnalyser();
   const source = ctx.createMediaStreamSource(stream);
@@ -248,8 +231,8 @@ function startVU() {
 
   const data = new Uint8Array(analyser.frequencyBinCount);
 
-  function loop() {
-    if (!isTalking) return;
+  function loop(){
+    if(!isTalking) return;
 
     analyser.getByteFrequencyData(data);
     let vol = data.reduce((a,b)=>a+b)/data.length;
