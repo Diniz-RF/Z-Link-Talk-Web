@@ -18,8 +18,6 @@ body {
 
 .app { padding:20px; }
 
-h1 { margin-bottom:10px; }
-
 .status {
   padding:6px 12px;
   border-radius:6px;
@@ -52,10 +50,6 @@ h1 { margin-bottom:10px; }
   background:#1e90ff;
   color:white;
 }
-
-#ptt:active {
-  background:#0b5ed7;
-}
 </style>
 </head>
 
@@ -65,7 +59,7 @@ h1 { margin-bottom:10px; }
 
 <h1>Z-Link Talk</h1>
 
-<div id="status" class="status">Conectando...</div>
+<div id="status" class="status">Conectado</div>
 
 <div id="vu">
   <div id="vu-bar"></div>
@@ -78,58 +72,102 @@ h1 { margin-bottom:10px; }
 </div>
 
 <script>
+// WebRTC
+const pc = new RTCPeerConnection({
+  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+});
+
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
-let pc = new RTCPeerConnection();
 let localStream;
-let analyser;
 let keyPressed = false;
 
 const statusEl = document.getElementById("status");
-const ptt = document.getElementById("ptt");
-const vuBar = document.getElementById("vu-bar");
 
-// 🔊 desbloqueia áudio
+// CONTEXTO
+const audioCtx = new AudioContext();
+
+// subtom RX
+function playTone(freq, durationMs) {
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+
+  osc.frequency.value = freq;
+  gain.gain.value = 0.2;
+
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  osc.start();
+  osc.stop(audioCtx.currentTime + durationMs / 1000);
+}
+
+// desbloquear áudio
 document.body.addEventListener("click", () => {
-  new Audio().play().catch(()=>{});
+  audioCtx.resume();
 });
 
-// 🎙️ captura microfone
+// microfone
 navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
   localStream = stream;
-
-  // começa MUTADO
   stream.getAudioTracks().forEach(t => t.enabled = false);
 
-  // VU meter
-  const ctx = new AudioContext();
-  analyser = ctx.createAnalyser();
-  const source = ctx.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  function loop(){
-    analyser.getByteFrequencyData(data);
-    let vol = data.reduce((a,b)=>a+b)/data.length;
-
-    vuBar.style.width = (vol/2) + "%";
-
-    requestAnimationFrame(loop);
-  }
-  loop();
-
-  // adiciona ao WebRTC
   stream.getTracks().forEach(track => {
     pc.addTrack(track, stream);
   });
 });
 
-// 🔊 RECEBER áudio
+// RECEBER ÁUDIO
 pc.ontrack = e => {
+  const remoteStream = e.streams[0];
+
   const audio = new Audio();
-  audio.srcObject = e.streams[0];
+  audio.srcObject = remoteStream;
   audio.play();
+
+  // ANALISADOR
+  const ctx = new AudioContext();
+  const analyser = ctx.createAnalyser();
+  const source = ctx.createMediaStreamSource(remoteStream);
+  source.connect(analyser);
+
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  let receiving = false;
+  let lastActive = 0;
+
+  function detect() {
+    analyser.getByteFrequencyData(data);
+
+    let volume = data.reduce((a,b)=>a+b)/data.length;
+
+    if (volume > 12) {
+      lastActive = Date.now();
+
+      if (!receiving) {
+        receiving = true;
+
+        // 🔊 início RX
+        playTone(18500, 50);
+
+        statusEl.innerText = "Recebendo...";
+      }
+
+    } else {
+      if (receiving && Date.now() - lastActive > 250) {
+        receiving = false;
+
+        // 🔊 fim RX
+        playTone(17500, 100);
+
+        statusEl.innerText = "Escutando";
+      }
+    }
+
+    requestAnimationFrame(detect);
+  }
+
+  detect();
 };
 
 // ICE
@@ -167,13 +205,11 @@ ws.onmessage = async msg => {
   }
 
   if (data.type === "ice") {
-    try {
-      await pc.addIceCandidate(data.candidate);
-    } catch {}
+    try { await pc.addIceCandidate(data.candidate); } catch {}
   }
 };
 
-// 🎙️ controle PTT
+// PTT
 function talk(on){
   if (!localStream) return;
 
@@ -197,7 +233,7 @@ ptt.addEventListener("touchend", e => {
   talk(false);
 });
 
-// teclado F7
+// teclado
 document.addEventListener("keydown", e => {
   if (e.key === "F7" && !keyPressed) {
     keyPressed = true;
