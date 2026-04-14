@@ -14,47 +14,37 @@ body {
   text-align:center;
 }
 
-.app {
-  padding:20px;
-}
+.app { padding:20px; }
 
 .status {
-  padding:8px 14px;
-  border-radius:6px;
-  display:inline-block;
-  margin-bottom:15px;
+  padding:8px;
   background:green;
-  font-weight:bold;
+  margin-bottom:15px;
+  display:inline-block;
 }
 
 #vu {
-  width:260px;
+  width:250px;
   height:20px;
   background:#222;
   margin:20px auto;
   border-radius:10px;
-  overflow:hidden;
 }
 
 #vu-bar {
   height:100%;
   width:0%;
   background:#00ff88;
-  transition:width 0.05s;
 }
 
 #ptt {
-  width:220px;
-  height:220px;
+  width:200px;
+  height:200px;
   border-radius:50%;
-  border:none;
-  font-size:20px;
   background:#1e90ff;
-  color:white;
-}
-
-#ptt:active {
-  background:#0b5ed7;
+  border:none;
+  color:#fff;
+  font-size:18px;
 }
 </style>
 </head>
@@ -67,42 +57,31 @@ body {
 
 <div id="status" class="status">Conectando...</div>
 
-<div id="vu">
-  <div id="vu-bar"></div>
-</div>
+<div id="vu"><div id="vu-bar"></div></div>
 
 <button id="ptt">SEGURE PARA FALAR</button>
 
-<p>Ou pressione F7</p>
+<p>Ou F7</p>
 
-<audio id="remoteAudio" autoplay playsinline></audio>
+<audio id="remoteAudio" autoplay></audio>
 
 </div>
 
 <script>
-// =====================
-// CONFIG
-// =====================
 const ws = new WebSocket("wss://z-link-talk.onrender.com");
 
-const pc = new RTCPeerConnection({
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-});
+let peers = {};
+let localStream;
+let myId;
+let keyPressed = false;
 
 const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
-const remoteAudio = document.getElementById("remoteAudio");
 const ptt = document.getElementById("ptt");
 
-let localStream;
-let keyPressed = false;
-
-// =====================
-// AUDIO CONTEXT
-// =====================
 const audioCtx = new AudioContext();
 
-function playTone(freq, durationMs) {
+function playTone(freq, duration){
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
 
@@ -113,193 +92,141 @@ function playTone(freq, durationMs) {
   gain.connect(audioCtx.destination);
 
   osc.start();
-  osc.stop(audioCtx.currentTime + durationMs / 1000);
+  osc.stop(audioCtx.currentTime + duration/1000);
 }
 
-// desbloqueio áudio
-document.body.addEventListener("click", () => {
-  audioCtx.resume();
-  remoteAudio.play().catch(()=>{});
+// microfone
+navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+  localStream = stream;
+  stream.getAudioTracks()[0].enabled = false;
 });
 
-// =====================
-// MICROFONE + VU TX
-// =====================
-navigator.mediaDevices.getUserMedia({
-  audio: {
-    channelCount: 1,
-    sampleRate: 16000
-  }
-}).then(stream => {
+// criar conexão
+function createPeer(id){
+  const pc = new RTCPeerConnection({
+    iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+  });
 
-  localStream = stream;
+  localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
 
-  // começa mutado
-  stream.getAudioTracks().forEach(t => t.enabled = false);
+  pc.ontrack = e=>{
+    const audio = new Audio();
+    audio.srcObject = e.streams[0];
+    audio.play();
+  };
 
-  // VU TX
-  const analyser = audioCtx.createAnalyser();
-  const source = audioCtx.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  function vuTX(){
-    analyser.getByteFrequencyData(data);
-    let vol = data.reduce((a,b)=>a+b)/data.length;
-
-    if (isTransmitting) {
-      vuBar.style.width = (vol/2) + "%";
+  pc.onicecandidate = e=>{
+    if(e.candidate){
+      ws.send(JSON.stringify({
+        type:"ice",
+        to:id,
+        candidate:e.candidate
+      }));
     }
+  };
 
-    requestAnimationFrame(vuTX);
-  }
+  peers[id]=pc;
+  return pc;
+}
 
-  vuTX();
-
-  // adiciona track
-  stream.getTracks().forEach(track => pc.addTrack(track, stream));
-
-  // limitar bitrate (~32kbps)
-  const sender = pc.getSenders().find(s => s.track && s.track.kind === "audio");
-  if (sender) {
-    const params = sender.getParameters();
-    if (!params.encodings) params.encodings = [{}];
-    params.encodings[0].maxBitrate = 32000;
-    sender.setParameters(params);
-  }
-
-}).catch(err => alert(err));
-
-// =====================
-// RECEBER ÁUDIO + VU RX
-// =====================
-pc.ontrack = (event) => {
-  const stream = event.streams[0];
-  remoteAudio.srcObject = stream;
-
-  // VU RX
-  const analyser = audioCtx.createAnalyser();
-  const source = audioCtx.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  const data = new Uint8Array(analyser.frequencyBinCount);
-
-  function vuRX(){
-    analyser.getByteFrequencyData(data);
-    let vol = data.reduce((a,b)=>a+b)/data.length;
-
-    if (!isTransmitting) {
-      vuBar.style.width = (vol/2) + "%";
-    }
-
-    requestAnimationFrame(vuRX);
-  }
-
-  vuRX();
-};
-
-// =====================
-// ICE
-// =====================
-pc.onicecandidate = e => {
-  if (e.candidate) {
-    ws.send(JSON.stringify({ type:"ice", candidate:e.candidate }));
-  }
-};
-
-// =====================
-// CONEXÃO
-// =====================
-ws.onopen = async () => {
-  statusEl.innerText = "Conectado";
-
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  ws.send(JSON.stringify({ type:"offer", offer }));
-};
-
-// =====================
-// MENSAGENS
-// =====================
-ws.onmessage = async msg => {
+// mensagens
+ws.onmessage = async msg=>{
   const data = JSON.parse(msg.data);
 
-  if (data.type === "offer") {
+  if(data.type==="init"){
+    myId = data.id;
+    statusEl.innerText="Conectado";
+
+    data.clients.forEach(id=>{
+      if(id!==myId){
+        const pc=createPeer(id);
+        const offer=await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        ws.send(JSON.stringify({
+          type:"offer",
+          to:id,
+          offer
+        }));
+      }
+    });
+  }
+
+  if(data.type==="new_peer"){
+    const pc=createPeer(data.id);
+
+    const offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    ws.send(JSON.stringify({
+      type:"offer",
+      to:data.id,
+      offer
+    }));
+  }
+
+  if(data.type==="offer"){
+    const pc=createPeer(data.from);
+
     await pc.setRemoteDescription(data.offer);
-    const answer = await pc.createAnswer();
+
+    const answer=await pc.createAnswer();
     await pc.setLocalDescription(answer);
-    ws.send(JSON.stringify({ type:"answer", answer }));
+
+    ws.send(JSON.stringify({
+      type:"answer",
+      to:data.from,
+      answer
+    }));
   }
 
-  if (data.type === "answer") {
-    await pc.setRemoteDescription(data.answer);
+  if(data.type==="answer"){
+    await peers[data.from].setRemoteDescription(data.answer);
   }
 
-  if (data.type === "ice") {
-    try { await pc.addIceCandidate(data.candidate); } catch {}
+  if(data.type==="ice"){
+    try{
+      await peers[data.from].addIceCandidate(data.candidate);
+    }catch{}
   }
 
-  // controle RX
-  if (data.type === "start_tx") {
-    playTone(18500, 50);
-    statusEl.innerText = "Recebendo...";
+  if(data.type==="start_tx"){
+    playTone(18500,50);
+    statusEl.innerText="Recebendo...";
   }
 
-  if (data.type === "stop_tx") {
-    playTone(17500, 100);
-    statusEl.innerText = "Escutando";
+  if(data.type==="stop_tx"){
+    playTone(17500,100);
+    statusEl.innerText="Escutando";
   }
 };
 
-// =====================
 // PTT
-// =====================
-let isTransmitting = false;
-
 function talk(on){
-  if (!localStream) return;
+  localStream.getAudioTracks()[0].enabled=on;
 
-  isTransmitting = on;
-
-  localStream.getAudioTracks().forEach(t => t.enabled = on);
-
-  if (on) {
-    ws.send(JSON.stringify({ type:"start_tx" }));
-    statusEl.innerText = "Transmitindo...";
-  } else {
-    ws.send(JSON.stringify({ type:"stop_tx" }));
-    statusEl.innerText = "Escutando";
+  if(on){
+    ws.send(JSON.stringify({type:"start_tx"}));
+    statusEl.innerText="Transmitindo...";
+  }else{
+    ws.send(JSON.stringify({type:"stop_tx"}));
+    statusEl.innerText="Escutando";
   }
 }
 
-// botão
-ptt.onmousedown = () => talk(true);
-ptt.onmouseup = () => talk(false);
+ptt.onmousedown=()=>talk(true);
+ptt.onmouseup=()=>talk(false);
 
-// touch
-ptt.addEventListener("touchstart", e => {
-  e.preventDefault();
-  talk(true);
-});
-
-ptt.addEventListener("touchend", e => {
-  e.preventDefault();
-  talk(false);
-});
-
-// teclado
-document.addEventListener("keydown", e => {
-  if (e.key === "F7" && !keyPressed) {
-    keyPressed = true;
+document.addEventListener("keydown",e=>{
+  if(e.key==="F7"&&!keyPressed){
+    keyPressed=true;
     talk(true);
   }
 });
 
-document.addEventListener("keyup", e => {
-  if (e.key === "F7") {
-    keyPressed = false;
+document.addEventListener("keyup",e=>{
+  if(e.key==="F7"){
+    keyPressed=false;
     talk(false);
   }
 });
