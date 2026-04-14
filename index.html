@@ -12,22 +12,23 @@ body {
   background:#000;
   color:#fff;
   text-align:center;
-  -webkit-user-select:none;
-  user-select:none;
 }
 
-.app { padding:20px; }
+.app {
+  padding:20px;
+}
 
 .status {
-  padding:6px 12px;
+  padding:8px 14px;
   border-radius:6px;
   display:inline-block;
-  margin-bottom:10px;
+  margin-bottom:15px;
   background:green;
+  font-weight:bold;
 }
 
 #vu {
-  width:250px;
+  width:260px;
   height:20px;
   background:#222;
   margin:20px auto;
@@ -39,6 +40,7 @@ body {
   height:100%;
   width:0%;
   background:#00ff88;
+  transition:width 0.05s;
 }
 
 #ptt {
@@ -63,7 +65,7 @@ body {
 
 <h1>Z-Link Talk</h1>
 
-<div id="status" class="status">Conectado</div>
+<div id="status" class="status">Conectando...</div>
 
 <div id="vu">
   <div id="vu-bar"></div>
@@ -73,29 +75,31 @@ body {
 
 <p>Ou pressione F7</p>
 
-<!-- 🔊 PLAYER FIXO -->
 <audio id="remoteAudio" autoplay playsinline></audio>
 
 </div>
 
 <script>
-// WebRTC
+// =====================
+// CONFIG
+// =====================
+const ws = new WebSocket("wss://z-link-talk.onrender.com");
+
 const pc = new RTCPeerConnection({
   iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
 });
 
-const ws = new WebSocket("wss://z-link-talk.onrender.com");
-
-let localStream;
-let analyser;
-let keyPressed = false;
-
 const statusEl = document.getElementById("status");
 const vuBar = document.getElementById("vu-bar");
-const ptt = document.getElementById("ptt");
 const remoteAudio = document.getElementById("remoteAudio");
+const ptt = document.getElementById("ptt");
 
-// ÁUDIO
+let localStream;
+let keyPressed = false;
+
+// =====================
+// AUDIO CONTEXT
+// =====================
 const audioCtx = new AudioContext();
 
 function playTone(freq, durationMs) {
@@ -112,72 +116,121 @@ function playTone(freq, durationMs) {
   osc.stop(audioCtx.currentTime + durationMs / 1000);
 }
 
-// desbloquear áudio
+// desbloqueio áudio
 document.body.addEventListener("click", () => {
   audioCtx.resume();
   remoteAudio.play().catch(()=>{});
 });
 
-// microfone
-navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+// =====================
+// MICROFONE + VU TX
+// =====================
+navigator.mediaDevices.getUserMedia({
+  audio: {
+    channelCount: 1,
+    sampleRate: 16000
+  }
+}).then(stream => {
+
   localStream = stream;
 
+  // começa mutado
   stream.getAudioTracks().forEach(t => t.enabled = false);
 
-  // VU
-  const ctx = new AudioContext();
-  analyser = ctx.createAnalyser();
-  const source = ctx.createMediaStreamSource(stream);
+  // VU TX
+  const analyser = audioCtx.createAnalyser();
+  const source = audioCtx.createMediaStreamSource(stream);
   source.connect(analyser);
 
   const data = new Uint8Array(analyser.frequencyBinCount);
 
-  function loop(){
+  function vuTX(){
     analyser.getByteFrequencyData(data);
     let vol = data.reduce((a,b)=>a+b)/data.length;
-    vuBar.style.width = (vol/2) + "%";
-    requestAnimationFrame(loop);
+
+    if (isTransmitting) {
+      vuBar.style.width = (vol/2) + "%";
+    }
+
+    requestAnimationFrame(vuTX);
   }
-  loop();
 
-  stream.getTracks().forEach(track => {
-    pc.addTrack(track, stream);
-  });
-});
+  vuTX();
 
-// 🔊 RECEBER ÁUDIO (CORRIGIDO)
-pc.ontrack = e => {
-  remoteAudio.srcObject = e.streams[0];
+  // adiciona track
+  stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+  // limitar bitrate (~32kbps)
+  const sender = pc.getSenders().find(s => s.track && s.track.kind === "audio");
+  if (sender) {
+    const params = sender.getParameters();
+    if (!params.encodings) params.encodings = [{}];
+    params.encodings[0].maxBitrate = 32000;
+    sender.setParameters(params);
+  }
+
+}).catch(err => alert(err));
+
+// =====================
+// RECEBER ÁUDIO + VU RX
+// =====================
+pc.ontrack = (event) => {
+  const stream = event.streams[0];
+  remoteAudio.srcObject = stream;
+
+  // VU RX
+  const analyser = audioCtx.createAnalyser();
+  const source = audioCtx.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  function vuRX(){
+    analyser.getByteFrequencyData(data);
+    let vol = data.reduce((a,b)=>a+b)/data.length;
+
+    if (!isTransmitting) {
+      vuBar.style.width = (vol/2) + "%";
+    }
+
+    requestAnimationFrame(vuRX);
+  }
+
+  vuRX();
 };
 
+// =====================
 // ICE
+// =====================
 pc.onicecandidate = e => {
   if (e.candidate) {
-    ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
+    ws.send(JSON.stringify({ type:"ice", candidate:e.candidate }));
   }
 };
 
-// conexão
+// =====================
+// CONEXÃO
+// =====================
 ws.onopen = async () => {
   statusEl.innerText = "Conectado";
 
   const offer = await pc.createOffer();
   await pc.setLocalDescription(offer);
 
-  ws.send(JSON.stringify({ type: "offer", offer }));
+  ws.send(JSON.stringify({ type:"offer", offer }));
 };
 
-// mensagens
+// =====================
+// MENSAGENS
+// =====================
 ws.onmessage = async msg => {
   const data = JSON.parse(msg.data);
 
   if (data.type === "offer") {
     await pc.setRemoteDescription(data.offer);
-
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-
-    ws.send(JSON.stringify({ type: "answer", answer }));
+    ws.send(JSON.stringify({ type:"answer", answer }));
   }
 
   if (data.type === "answer") {
@@ -188,6 +241,7 @@ ws.onmessage = async msg => {
     try { await pc.addIceCandidate(data.candidate); } catch {}
   }
 
+  // controle RX
   if (data.type === "start_tx") {
     playTone(18500, 50);
     statusEl.innerText = "Recebendo...";
@@ -199,25 +253,32 @@ ws.onmessage = async msg => {
   }
 };
 
+// =====================
 // PTT
+// =====================
+let isTransmitting = false;
+
 function talk(on){
   if (!localStream) return;
+
+  isTransmitting = on;
 
   localStream.getAudioTracks().forEach(t => t.enabled = on);
 
   if (on) {
-    ws.send(JSON.stringify({ type: "start_tx" }));
+    ws.send(JSON.stringify({ type:"start_tx" }));
     statusEl.innerText = "Transmitindo...";
   } else {
-    ws.send(JSON.stringify({ type: "stop_tx" }));
+    ws.send(JSON.stringify({ type:"stop_tx" }));
     statusEl.innerText = "Escutando";
   }
 }
 
-// controles
-ptt.addEventListener("mousedown", () => talk(true));
-ptt.addEventListener("mouseup", () => talk(false));
+// botão
+ptt.onmousedown = () => talk(true);
+ptt.onmouseup = () => talk(false);
 
+// touch
 ptt.addEventListener("touchstart", e => {
   e.preventDefault();
   talk(true);
@@ -228,6 +289,7 @@ ptt.addEventListener("touchend", e => {
   talk(false);
 });
 
+// teclado
 document.addEventListener("keydown", e => {
   if (e.key === "F7" && !keyPressed) {
     keyPressed = true;
