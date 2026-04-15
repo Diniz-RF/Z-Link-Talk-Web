@@ -216,6 +216,10 @@
         let ws, myId = null, localStream = null, audioCtx, txAnalyser, rxAnalyser;
         let peers = {}, isTransmitting = false, pttPressed = false, rxCount = 0;
         let isF7Pressed = false;
+        
+        // Trilha de silêncio para manter o WebRTC vivo sem usar o mic
+        let dummyTrack = null;
+        let dummyStream = null;
 
         window.addEventListener('load', () => {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -225,6 +229,11 @@
             txAnalyser.fftSize = 256;
             rxAnalyser.fftSize = 256;
             
+            // Criando o "Dummy Track" (Trilha Mudo)
+            const dest = audioCtx.createMediaStreamDestination();
+            dummyTrack = dest.stream.getAudioTracks()[0];
+            dummyStream = new MediaStream([dummyTrack]);
+
             startVUMeter();
             connectWebSocket();
         });
@@ -283,8 +292,10 @@
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null };
             
-            // Adiciona um track vazio inicialmente para manter a conexão ativa
-            pc.addTransceiver('audio', { direction: 'sendrecv' });
+            // Adiciona a trilha de silêncio para garantir um sender válido no WebRTC
+            if (dummyTrack && dummyStream) {
+                pc.addTrack(dummyTrack, dummyStream);
+            }
 
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
@@ -330,7 +341,7 @@
                 const source = audioCtx.createMediaStreamSource(localStream);
                 source.connect(txAnalyser);
 
-                // Injeta o track nas conexões existentes
+                // Substitui a trilha mudo pela trilha real do microfone nas conexões ativas
                 for (let id in peers) {
                     const senders = peers[id].pc.getSenders();
                     const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders[0];
@@ -356,17 +367,17 @@
 
             pttPressed = false; isTransmitting = false;
 
+            // Retorna a trilha para o Mudo (Dummy Track) para os peers antes de desligar o mic local
+            for (let id in peers) {
+                const senders = peers[id].pc.getSenders();
+                const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders[0];
+                if (audioSender) audioSender.replaceTrack(dummyTrack);
+            }
+
             // 🛑 PARA COMPLETAMENTE O MICROFONE (HARDWARE)
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
-            }
-
-            // Remove o track das conexões enviando nulo (silêncio total)
-            for (let id in peers) {
-                const senders = peers[id].pc.getSenders();
-                const audioSender = senders.find(s => s.track === null || (s.track && s.track.kind === 'audio')) || senders[0];
-                if (audioSender) audioSender.replaceTrack(null);
             }
 
             pttBtn.classList.remove('active');
