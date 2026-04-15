@@ -14,10 +14,8 @@
             --accent-blue: #007bff;
             --accent-green: #28a745;
             --accent-red: #dc3545;
-            --ptt-idle: #2c3e50;
         }
 
-        /* CORREÇÃO GLOBAL: Remove o highlight de toque em todo o app */
         * {
             -webkit-tap-highlight-color: transparent;
             -webkit-touch-callout: none;
@@ -44,67 +42,80 @@
             max-width: 380px;
             background-color: var(--radio-body);
             border-radius: 40px;
-            padding: 30px 20px;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.05);
+            padding: 40px 25px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.9), inset 0 2px 5px rgba(255,255,255,0.05);
             border: 1px solid #2a2e35;
             text-align: center;
-            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
         }
 
         .header {
-            margin-bottom: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
         h1 {
-            font-size: 26px;
+            font-size: 28px;
             margin: 0;
             letter-spacing: 1px;
             color: var(--accent-blue);
-            text-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+            text-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
         }
 
         .dev-tag {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 4px;
-            display: block;
+            letter-spacing: 1.5px;
         }
 
         .display-panel {
             background-color: var(--display-bg);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 30px;
+            border-radius: 15px;
+            padding: 20px 15px;
             border: 2px solid #222;
-            box-shadow: inset 0 0 10px rgba(0,0,0,1);
+            box-shadow: inset 0 0 15px rgba(0,0,0,1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
         }
 
         #status {
-            font-size: 14px;
-            font-weight: bold;
+            font-size: 18px;
+            font-weight: 800;
             color: var(--text-dim);
-            margin-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            transition: all 0.2s ease;
         }
 
-        .status-tx { color: var(--accent-red) !important; text-shadow: 0 0 8px rgba(220, 53, 69, 0.5); }
-        .status-rx { color: var(--accent-green) !important; text-shadow: 0 0 8px rgba(40, 167, 69, 0.5); }
+        #peer-count {
+            font-size: 12px;
+            color: var(--text-dim);
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-tx { color: var(--accent-red) !important; text-shadow: 0 0 10px rgba(220, 53, 69, 0.6); }
+        .status-rx { color: var(--accent-green) !important; text-shadow: 0 0 10px rgba(40, 167, 69, 0.6); }
 
         canvas#vu-meter {
             width: 100%;
-            height: 12px;
-            border-radius: 4px;
+            height: 10px;
+            border-radius: 5px;
             background-color: #111;
+            margin-top: 5px;
         }
 
         .ptt-container {
             display: flex;
             justify-content: center;
-            align-items: center;
-            margin: 20px 0;
+            padding: 10px 0;
         }
 
         #ptt-btn {
@@ -113,74 +124,52 @@
             border-radius: 50%;
             border: 8px solid #121417;
             background: radial-gradient(circle, #34495e 0%, #2c3e50 100%);
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
+            color: #f8f9fa; 
             cursor: pointer;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 2px 10px rgba(255,255,255,0.1);
-            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.7), inset 0 2px 10px rgba(255,255,255,0.1);
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
             outline: none;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            user-select: none;
-            -webkit-user-select: none;
             touch-action: none;
             position: relative;
         }
 
-        #ptt-btn span, #ptt-btn strong {
-            pointer-events: none;
-            user-select: none;
-            -webkit-user-select: none;
+        .ptt-label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
 
-        #ptt-btn::after {
-            content: "";
-            position: absolute;
-            width: 90%;
-            height: 90%;
-            border-radius: 50%;
-            border: 1px solid rgba(255,255,255,0.05);
-            pointer-events: none;
-        }
-
-        #ptt-btn span {
-            font-size: 10px;
-            opacity: 0.6;
-            margin-top: 8px;
-            font-weight: normal;
-            letter-spacing: 1px;
+        .ptt-label span {
+            font-size: 26px;
+            font-weight: 900;
+            line-height: 0.9;
+            text-transform: uppercase;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
         }
 
         #ptt-btn.active {
-            transform: scale(0.96);
+            transform: scale(0.95);
             background: radial-gradient(circle, #e74c3c 0%, #c0392b 100%);
-            box-shadow: 0 0 30px rgba(231, 76, 60, 0.4), inset 0 5px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 0 40px rgba(231, 76, 60, 0.5), inset 0 5px 15px rgba(0,0,0,0.3);
             border-color: #96281b;
         }
 
         #ptt-btn.receiving {
             background: radial-gradient(circle, #2ecc71 0%, #27ae60 100%);
-            box-shadow: 0 0 30px rgba(46, 204, 113, 0.4);
+            box-shadow: 0 0 40px rgba(46, 204, 113, 0.5);
             border-color: #1e8449;
-            pointer-events: none;
-        }
-
-        #peer-count {
-            margin-top: 25px;
-            font-size: 11px;
-            color: var(--text-dim);
-            background: rgba(0,0,0,0.2);
-            padding: 5px 15px;
-            border-radius: 20px;
-            display: inline-block;
         }
 
         #audio-container { display: none; }
+
+        @media (max-width: 360px) {
+            #app-screen { padding: 30px 15px; gap: 15px; }
+            #ptt-btn { width: 180px; height: 180px; }
+            .ptt-label span { font-size: 22px; }
+        }
     </style>
 </head>
 <body>
@@ -192,18 +181,21 @@
         </div>
 
         <div class="display-panel">
-            <div id="status">Aguardando Mic...</div>
-            <canvas id="vu-meter" width="300" height="12"></canvas>
+            <div id="status">Conectando...</div>
+            <div id="peer-count">Buscando usuários...</div>
+            <canvas id="vu-meter" width="300" height="10"></canvas>
         </div>
         
         <div class="ptt-container">
             <button id="ptt-btn">
-                <strong>SEGURE PARA FALAR</strong>
-                <span>OU PRESSIONE F7</span>
+                <div class="ptt-label">
+                    <span>PRESSIONE</span>
+                    <span>PARA</span>
+                    <span>FALAR</span>
+                </div>
             </button>
         </div>
 
-        <div id="peer-count">USUÁRIOS ONLINE: 1</div>
         <div id="audio-container"></div>
     </div>
 
@@ -223,6 +215,9 @@
 
         let ws, myId = null, localStream, audioCtx, txAnalyser, rxAnalyser;
         let peers = {}, isTransmitting = false, pttPressed = false, rxCount = 0;
+        
+        // Controle de tecla F7
+        let isF7Pressed = false;
 
         window.addEventListener('load', async () => {
             try {
@@ -241,15 +236,17 @@
                 startVUMeter();
                 connectWebSocket();
             } catch (err) {
-                statusEl.innerText = "ERRO DE PERMISSÃO";
+                statusEl.innerText = "ERRO DE MIC";
                 statusEl.classList.add('status-tx');
             }
         });
 
         function connectWebSocket() {
-            statusEl.innerText = "CONECTANDO...";
             ws = new WebSocket(WS_URL);
-            ws.onopen = () => { statusEl.innerText = "CANAL LIVRE"; statusEl.className = ""; };
+            ws.onopen = () => { 
+                statusEl.innerText = "Canal Livre"; 
+                statusEl.className = ""; 
+            };
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
                 const senderId = data.from || data.id;
@@ -288,7 +285,10 @@
                         break;
                 }
             };
-            ws.onclose = () => { statusEl.innerText = "DESCONECTADO"; setTimeout(connectWebSocket, 3000); };
+            ws.onclose = () => { 
+                statusEl.innerText = "Desconectado"; 
+                setTimeout(connectWebSocket, 3000); 
+            };
         }
 
         async function createPeerConnection(peerId, isInitiator) {
@@ -319,7 +319,9 @@
             return sdp.replace(/a=fmtp:111(.*)\r\n/g, 'a=fmtp:111$1;maxaveragebitrate=' + (bitrate * 1000) + '\r\n');
         }
 
-        function updatePeerCount(count) { peerCountEl.innerText = `USUÁRIOS ONLINE: ${count}`; }
+        function updatePeerCount(count) { 
+            peerCountEl.innerText = `${count} ${count === 1 ? 'usuário conectado' : 'usuários conectados'}`; 
+        }
 
         function startPTT(e) {
             if (e && e.pointerId) pttBtn.setPointerCapture(e.pointerId);
@@ -328,9 +330,8 @@
             pttPressed = true; isTransmitting = true;
             localStream.getAudioTracks()[0].enabled = true;
             pttBtn.classList.add('active');
-            pttBtn.querySelector('strong').innerText = "FALANDO...";
-            pttBtn.querySelector('span').innerText = "SOLTE PARA OUVIR";
-            statusEl.innerText = "TRANSMITINDO";
+            pttBtn.querySelector('.ptt-label').innerHTML = "<span>FALANDO...</span>";
+            statusEl.innerText = "Transmitindo";
             statusEl.className = "status-tx";
             ws.send(JSON.stringify({ type: "start_tx" }));
         }
@@ -341,40 +342,54 @@
             pttPressed = false; isTransmitting = false;
             localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
-            pttBtn.querySelector('strong').innerText = "SEGURE PARA FALAR";
-            pttBtn.querySelector('span').innerText = "OU PRESSIONE F7";
-            statusEl.innerText = "CANAL LIVRE";
+            pttBtn.querySelector('.ptt-label').innerHTML = "<span>PRESSIONE</span><span>PARA</span><span>FALAR</span>";
+            statusEl.innerText = "Canal Livre";
             statusEl.className = "";
             ws.send(JSON.stringify({ type: "stop_tx" }));
         }
 
+        // EVENTOS POINTER (Touch/Mouse)
         pttBtn.addEventListener('pointerdown', startPTT);
         pttBtn.addEventListener('pointerup', stopPTT);
         pttBtn.addEventListener('pointercancel', stopPTT);
         pttBtn.addEventListener('pointerleave', stopPTT);
         window.addEventListener('pointerup', stopPTT);
 
-        window.addEventListener('keydown', (e) => { if (e.key === 'F7' && !e.repeat) { e.preventDefault(); startPTT(); } });
-        window.addEventListener('keyup', (e) => { if (e.key === 'F7') { e.preventDefault(); stopPTT(); } });
+        // EVENTOS DE TECLADO (F7)
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'F7') {
+                e.preventDefault();
+                if (!isF7Pressed) {
+                    isF7Pressed = true;
+                    startPTT();
+                }
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'F7') {
+                e.preventDefault();
+                isF7Pressed = false;
+                stopPTT();
+            }
+        });
 
         function handleRemoteTX(isStart, senderId) {
             if (isStart) {
                 rxCount++;
                 generateSubtone(SUBTONE_START_FREQ, 50);
-                statusEl.innerText = "RECEBENDO";
+                statusEl.innerText = "Recebendo";
                 statusEl.className = "status-rx";
                 pttBtn.classList.add('receiving');
-                pttBtn.querySelector('strong').innerText = "OCUPADO";
-                pttBtn.querySelector('span').innerText = "RECEBENDO ÁUDIO";
+                pttBtn.querySelector('.ptt-label').innerHTML = "<span>OCUPADO</span>";
             } else {
                 rxCount = Math.max(0, rxCount - 1);
                 generateSubtone(SUBTONE_END_FREQ, 100);
                 if (rxCount === 0) {
-                    statusEl.innerText = "CANAL LIVRE";
+                    statusEl.innerText = "Canal Livre";
                     statusEl.className = "";
                     pttBtn.classList.remove('receiving');
-                    pttBtn.querySelector('strong').innerText = "SEGURE PARA FALAR";
-                    pttBtn.querySelector('span').innerText = "OU PRESSIONE F7";
+                    pttBtn.querySelector('.ptt-label').innerHTML = "<span>PRESSIONE</span><span>PARA</span><span>FALAR</span>";
                 }
             }
         }
