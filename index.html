@@ -6,11 +6,10 @@
     <title>Z-Link Talk | Diniz-RF</title>
     <style>
         :root {
-            /* Cores ajustadas para alto contraste e visibilidade */
             --body-bg: radial-gradient(circle, #1e2126 0%, #0d0f12 100%);
             --radio-gradient: linear-gradient(145deg, #3a3f47 0%, #1c1f26 100%);
             --radio-border: #4a5159;
-            --display-bg: #080d14; /* Azul profundo em vez de preto absoluto */
+            --display-bg: #080d14;
             --glow-cyan: #00f2ff;
             --glow-red: #ff3c3c;
             --glow-green: #3cfb3c;
@@ -20,199 +19,103 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0;
-            background: var(--body-bg);
-            color: #fff;
+            margin: 0; background: var(--body-bg); color: #fff;
             font-family: 'Segoe UI', Arial, sans-serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; overflow: hidden;
         }
 
-        /* Estrutura Externa - Efeito de Profundidade Melhorado */
         .radio-chassis {
-            position: relative;
-            width: 360px;
-            height: 680px;
-            background: var(--radio-gradient);
-            border-radius: 45px;
+            position: relative; 
+            width: 360px; 
+            height: 710px; /* Altura ajustada para evitar sobreposição inferior */
+            background: var(--radio-gradient); border-radius: 45px;
             border: 2px solid var(--radio-border);
-            /* Brilho externo ciano suave para destacar no claro */
-            box-shadow: 
-                0 0 50px rgba(0, 242, 255, 0.1),
-                0 30px 60px rgba(0,0,0,0.7), 
-                inset 0 2px 3px var(--metal-shine);
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            user-select: none;
+            box-shadow: 0 0 50px rgba(0, 242, 255, 0.1), 0 30px 60px rgba(0,0,0,0.7), inset 0 2px 3px var(--metal-shine);
+            display: flex; flex-direction: column; padding: 25px 20px; user-select: none;
         }
 
-        /* Detalhes de Hardware com Contraste */
         .antenna {
-            position: absolute;
-            top: -65px; right: 50px;
-            width: 38px; height: 85px;
+            position: absolute; top: -65px; right: 50px; width: 38px; height: 85px;
             background: linear-gradient(to right, #1a1a1a, #333, #1a1a1a);
-            border-radius: 10px 10px 0 0;
-            border: 1px solid #000;
-            z-index: -1;
+            border-radius: 10px 10px 0 0; border: 1px solid #000; z-index: -1;
         }
+
         .knob {
-            position: absolute;
-            top: -40px; left: 60px;
-            width: 55px; height: 45px;
+            position: absolute; top: -40px; left: 60px; width: 55px; height: 45px;
             background: linear-gradient(to right, #222, #444, #222);
-            border-radius: 12px 12px 0 0;
-            z-index: -1;
-            border: 1px solid #000;
-            border-top: 3px solid var(--glow-red);
+            border-radius: 12px 12px 0 0; border: 1px solid #000; border-top: 3px solid var(--glow-red); z-index: -1;
         }
 
         .screw {
-            position: absolute;
-            width: 14px; height: 14px;
+            position: absolute; width: 14px; height: 14px;
             background: radial-gradient(circle at 30% 30%, #666, #111);
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
-        .s-tl { top: 20px; left: 20px; } .s-tr { top: 20px; right: 20px; }
-        .s-bl { bottom: 20px; left: 20px; } .s-br { bottom: 20px; right: 20px; }
+        .s-tl { top: 20px; left: 20px; } 
+        .s-tr { top: 20px; right: 20px; }
+        .s-bl { bottom: 15px; left: 20px; } 
+        .s-br { bottom: 15px; right: 20px; }
 
-        .dev-header {
-            text-align: center;
-            font-size: 10px;
-            color: #8892a0;
-            letter-spacing: 2.5px;
-            margin-bottom: 15px;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        /* Painel do Display - Mais Brilhante */
         .display-area {
-            background: var(--display-bg);
-            border: 6px solid #1a1a1a;
-            border-radius: 18px;
-            padding: 25px 15px;
-            box-shadow: 
-                inset 0 0 30px rgba(0,0,0,0.9),
-                0 4px 10px rgba(255,255,255,0.05);
-            margin-bottom: 20px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
+            background: var(--display-bg); border: 6px solid #1a1a1a; border-radius: 18px;
+            padding: 20px 15px; box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
+            margin-top: 10px; margin-bottom: 20px; position: relative;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
         }
 
-        /* Scanlines mais visíveis para estilo digital */
         .display-area::before {
             content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: linear-gradient(rgba(255, 255, 255, 0.03) 50%, rgba(0, 0, 0, 0.1) 50%);
-            background-size: 100% 4px; pointer-events: none; z-index: 1;
-            border-radius: 12px;
+            background-size: 100% 4px; pointer-events: none; z-index: 1; border-radius: 12px;
         }
 
-        #brand { 
-            font-size: 36px;
-            font-weight: 900; 
-            color: #fff; /* Branco puro para legibilidade máxima */
-            text-shadow: 0 0 20px var(--glow-cyan), 0 0 10px var(--glow-cyan); 
-            margin: 0;
-            z-index: 2;
-        }
-
+        #brand { font-size: 36px; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--glow-cyan); margin: 0; z-index: 2; }
+        .dev-credit { font-size: 10px; color: #63b3ed; opacity: 0.6; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; margin-bottom: 10px; font-weight: 600; z-index: 2; }
+        
         #status { 
-            font-size: 18px;
-            margin: 12px 0; 
-            color: #b0b8c4; 
-            text-transform: uppercase; 
-            letter-spacing: 4px; 
-            font-weight: 800;
-            z-index: 2;
+            font-size: 18px; margin: 5px 0; color: #b0b8c4; 
+            text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; 
         }
 
         #peer-count { 
-            font-size: 12px;
-            color: #63b3ed; 
-            letter-spacing: 1px;
-            font-weight: bold;
-            z-index: 2;
-            opacity: 0.9;
+            font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; 
+            font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px;
         }
 
         .status-tx #status { color: #ff5555; text-shadow: 0 0 15px var(--glow-red); }
         .status-rx #status { color: #55ff55; text-shadow: 0 0 15px var(--glow-green); }
 
-        /* VU Meter com Contraste Alto */
-        .vu-container { margin-top: 20px; width: 100%; z-index: 2; }
-        .vu-scale { display: flex; justify-content: space-between; font-size: 9px; color: #556070; margin-bottom: 6px; font-weight: bold; }
-        canvas#vu-meter {
-            width: 100%; height: 14px;
-            background: #000;
-            border-radius: 4px;
-            border: 1px solid #222;
-        }
+        .vu-container { margin-top: 15px; width: 100%; z-index: 2; }
+        .vu-scale { display: flex; justify-content: space-between; font-size: 9px; color: #444; margin-bottom: 6px; font-weight: bold; }
+        canvas#vu-meter { width: 100%; height: 14px; background: #000; border-radius: 4px; border: 1px solid #1a1a1a; }
 
-        /* Botão PTT - Reforço 3D */
-        .ptt-section {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
+        .ptt-section { flex: 1; display: flex; align-items: center; justify-content: center; }
         #ptt-btn {
-            width: 230px; height: 230px;
-            border-radius: 50%;
-            border: 12px solid #14161a;
-            /* Gradiente de iluminação superior para efeito 3D */
+            width: 230px; height: 230px; border-radius: 50%; border: 12px solid #14161a;
             background: radial-gradient(circle at 35% 35%, #5a626d 0%, #2c313a 45%, #14161a 100%);
-            cursor: pointer;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 
-                0 20px 40px rgba(0,0,0,0.8), 
-                inset 0 4px 8px rgba(255,255,255,0.2),
-                inset 0 -4px 8px rgba(0,0,0,0.5);
-            transition: all 0.1s ease;
-            outline: none;
-            touch-action: none;
+            cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 4px 8px rgba(255,255,255,0.2);
+            transition: all 0.1s ease; outline: none; touch-action: none;
         }
 
         #ptt-btn::after {
-            content: ""; position: absolute;
-            top: -6px; left: -6px; right: -6px; bottom: -6px;
-            border-radius: 50%;
-            border: 4px solid transparent;
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            content: ""; position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px;
+            border-radius: 50%; border: 4px solid transparent; transition: all 0.3s ease;
         }
-
-        #ptt-btn.active { transform: scale(0.94); box-shadow: 0 10px 20px rgba(0,0,0,0.8); }
+        #ptt-btn.active { transform: scale(0.94); }
         #ptt-btn.active::after { border-color: var(--glow-red); box-shadow: 0 0 30px var(--glow-red); }
         #ptt-btn.receiving::after { border-color: var(--glow-green); box-shadow: 0 0 30px var(--glow-green); }
 
         .ptt-label-main { font-size: 38px; font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
         .ptt-label-sub { font-size: 11px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
 
-        /* Grade do Alto-falante */
         .speaker-grill {
-            height: 110px; width: 100%;
-            background: radial-gradient(#000 30%, transparent 31%);
-            background-size: 7px 7px;
-            background-color: #1a1d23;
-            border-radius: 25px;
-            border: 2px solid #111;
-            margin-top: 20px;
-            box-shadow: 
-                inset 0 8px 15px rgba(0,0,0,0.7),
-                0 2px 4px rgba(255,255,255,0.05);
+            height: 110px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
+            background-size: 7px 7px; background-color: #1a1d23; border-radius: 25px; border: 2px solid #111;
+            margin-top: 35px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
         }
 
         #audio-container { display: none; }
@@ -223,23 +126,18 @@
     <div class="radio-chassis">
         <div class="antenna"></div>
         <div class="knob"></div>
-        
-        <div class="screw s-tl"></div>
-        <div class="screw s-tr"></div>
-        <div class="screw s-bl"></div>
-        <div class="screw s-br"></div>
-
-        <div class="dev-header">Z-Link Communicator</div>
+        <div class="screw s-tl"></div><div class="screw s-tr"></div>
+        <div class="screw s-bl"></div><div class="screw s-br"></div>
 
         <div class="display-area" id="display-wrapper">
             <h1 id="brand">Z-Link Talk</h1>
-            <div id="status">SISTEMA ONLINE</div>
-            <div id="peer-count">AGUARDANDO CONEXÃO...</div>
+            <div class="dev-credit">Desenvolvido por Diniz-RF</div>
+            
+            <div id="status">Conectando...</div>
+            <div id="peer-count">CONECTADOS AGORA: 0</div>
             
             <div class="vu-container">
-                <div class="vu-scale">
-                    <span>LOW</span><span>|</span><span>|</span><span>MID</span><span>|</span><span>|</span><span>HIGH</span>
-                </div>
+                <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
                 <canvas id="vu-meter" width="300" height="14"></canvas>
             </div>
         </div>
@@ -250,18 +148,14 @@
                 <div class="ptt-label-sub" id="ptt-hint">PUSH TO TALK</div>
             </button>
         </div>
-
         <div class="speaker-grill"></div>
     </div>
 
     <div id="audio-container"></div>
 
     <script>
-        // --- LÓGICA DE SISTEMA (INTACTA) ---
         const WS_URL = "wss://z-link-talk.onrender.com";
         const AUDIO_BITRATE = 32;
-        const SUBTONE_START_FREQ = 18500;
-        const SUBTONE_END_FREQ = 17500;
         const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
         const pttBtn = document.getElementById('ptt-btn');
@@ -271,11 +165,12 @@
         const ctxVU = canvasVU.getContext('2d');
         const peerCountEl = document.getElementById('peer-count');
         const audioContainer = document.getElementById('audio-container');
-        const pttHint = document.getElementById('ptt-hint');
 
-        let ws, myId = null, localStream, audioCtx, txAnalyser, rxAnalyser;
-        let peers = {}, isTransmitting = false, pttPressed = false, rxCount = 0;
-        let isF7Pressed = false;
+        let ws, myId = null, localStream, audioCtx, txAnalyser;
+        let peers = {}; 
+        let isTransmitting = false;
+        let activeSpeakers = new Set();
+        let f7Pressed = false;
 
         window.addEventListener('load', async () => {
             try {
@@ -283,28 +178,25 @@
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
                 });
                 localStream.getAudioTracks()[0].enabled = false;
+                
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 txAnalyser = audioCtx.createAnalyser();
-                rxAnalyser = audioCtx.createAnalyser();
                 txAnalyser.fftSize = 256;
-                rxAnalyser.fftSize = 256;
+                
                 const source = audioCtx.createMediaStreamSource(localStream);
                 source.connect(txAnalyser);
+                
                 startVUMeter();
                 connectWebSocket();
             } catch (err) {
-                statusEl.innerText = "ERRO DE MIC";
-                displayWrapper.className = "display-area status-tx";
+                statusEl.innerText = "ERRO MIC";
             }
         });
 
         function connectWebSocket() {
             ws = new WebSocket(WS_URL);
-            ws.onopen = () => { 
-                statusEl.innerText = "Canal Livre"; 
-                displayWrapper.className = "display-area"; 
-            };
+            ws.onopen = () => { statusEl.innerText = "Canal Livre"; };
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
                 const senderId = data.from || data.id;
@@ -314,93 +206,75 @@
                         data.clients.forEach(clientId => { if (clientId !== myId) createPeerConnection(clientId, true); });
                         updatePeerCount(data.clients.length);
                         break;
-                    case "new_peer":
-                        updatePeerCount(Object.keys(peers).length + 2);
-                        break;
+                    case "new_peer": updatePeerCount(Object.keys(peers).length + 2); break;
                     case "offer":
                         if (!peers[senderId]) await createPeerConnection(senderId, false);
                         await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answer = await peers[senderId].pc.createAnswer();
-                        answer.sdp = setAudioBitrate(answer.sdp, AUDIO_BITRATE);
                         await peers[senderId].pc.setLocalDescription(answer);
                         ws.send(JSON.stringify({ type: "answer", to: senderId, answer: peers[senderId].pc.localDescription }));
                         break;
-                    case "answer":
-                        if (peers[senderId]) await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                        break;
-                    case "ice_candidate":
-                        if (peers[senderId]) await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-                        break;
+                    case "answer": if (peers[senderId]) await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer)); break;
+                    case "ice_candidate": if (peers[senderId]) await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate)); break;
                     case "start_tx": handleRemoteTX(true, senderId); break;
                     case "stop_tx": handleRemoteTX(false, senderId); break;
                     case "peer_left":
-                        if (peers[data.id]) {
-                            if (peers[data.id].audioEl) peers[data.id].audioEl.remove();
-                            peers[data.id].pc.close();
-                            delete peers[data.id];
+                        if (peers[data.id]) { 
+                            if (peers[data.id].audioEl) peers[data.id].audioEl.remove(); 
+                            peers[data.id].pc.close(); 
+                            delete peers[data.id]; 
+                            activeSpeakers.delete(data.id);
                         }
                         updatePeerCount(Object.keys(peers).length + 1);
                         break;
                 }
             };
-            ws.onclose = () => { 
-                statusEl.innerText = "Desconectado"; 
-                setTimeout(connectWebSocket, 3000); 
-            };
         }
 
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
-            peers[peerId] = { pc, audioEl: null };
+            peers[peerId] = { pc, audioEl: null, analyser: null };
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
-                    const audio = document.createElement('audio');
-                    audio.autoplay = true; audio.playsInline = true;
-                    audio.srcObject = e.streams[0];
+                    const audio = new Audio();
+                    audio.srcObject = e.streams[0]; audio.autoplay = true; audio.playsInline = true;
                     audioContainer.appendChild(audio);
                     peers[peerId].audioEl = audio;
-                    const src = audioCtx.createMediaStreamSource(e.streams[0]);
-                    src.connect(rxAnalyser);
+                    const streamSource = audioCtx.createMediaStreamSource(e.streams[0]);
+                    const peerAnalyser = audioCtx.createAnalyser();
+                    peerAnalyser.fftSize = 256;
+                    streamSource.connect(peerAnalyser);
+                    peers[peerId].analyser = peerAnalyser;
+                    audio.play().catch(err => console.log(err));
                 }
             };
             if (isInitiator) {
                 const offer = await pc.createOffer();
-                offer.sdp = setAudioBitrate(offer.sdp, AUDIO_BITRATE);
                 await pc.setLocalDescription(offer);
                 ws.send(JSON.stringify({ type: "offer", to: peerId, offer: pc.localDescription }));
             }
         }
 
-        function setAudioBitrate(sdp, bitrate) {
-            return sdp.replace(/a=fmtp:111(.*)\r\n/g, 'a=fmtp:111$1;maxaveragebitrate=' + (bitrate * 1000) + '\r\n');
-        }
+        function updatePeerCount(count) { peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; }
 
-        function updatePeerCount(count) { 
-            peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; 
-        }
-
-        function startPTT(e) {
-            if (e && e.pointerId) pttBtn.setPointerCapture(e.pointerId);
-            if (pttPressed || isTransmitting || rxCount > 0) return;
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            pttPressed = true; isTransmitting = true;
+        function startPTT() {
+            if (isTransmitting || activeSpeakers.size > 0) return;
+            isTransmitting = true;
             localStream.getAudioTracks()[0].enabled = true;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             pttBtn.classList.add('active');
-            pttHint.innerText = "TRANSMITINDO...";
             statusEl.innerText = "Transmitindo";
             displayWrapper.classList.add('status-tx');
             ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
-        function stopPTT(e) {
-            if (e && e.pointerId && pttBtn.hasPointerCapture(e.pointerId)) pttBtn.releasePointerCapture(e.pointerId);
-            if (!pttPressed || !isTransmitting) return;
-            pttPressed = false; isTransmitting = false;
+        function stopPTT() {
+            if (!isTransmitting) return;
+            isTransmitting = false;
             localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
-            pttHint.innerText = "PUSH TO TALK";
             statusEl.innerText = "Canal Livre";
             displayWrapper.classList.remove('status-tx');
             ws.send(JSON.stringify({ type: "stop_tx" }));
@@ -408,77 +282,88 @@
 
         pttBtn.addEventListener('pointerdown', startPTT);
         pttBtn.addEventListener('pointerup', stopPTT);
-        pttBtn.addEventListener('pointercancel', stopPTT);
-        pttBtn.addEventListener('pointerleave', stopPTT);
-        window.addEventListener('pointerup', stopPTT);
-
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'F7') { e.preventDefault(); if (!isF7Pressed) { isF7Pressed = true; startPTT(); } }
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'F7') { e.preventDefault(); isF7Pressed = false; stopPTT(); }
-        });
 
         function handleRemoteTX(isStart, senderId) {
             if (isStart) {
-                rxCount++;
-                generateSubtone(SUBTONE_START_FREQ, 50);
+                activeSpeakers.add(senderId);
                 statusEl.innerText = "Recebendo";
                 displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
-                pttHint.innerText = "OCUPADO";
             } else {
-                rxCount = Math.max(0, rxCount - 1);
-                generateSubtone(SUBTONE_END_FREQ, 100);
-                if (rxCount === 0) {
+                activeSpeakers.delete(senderId);
+                if (activeSpeakers.size === 0) {
                     statusEl.innerText = "Canal Livre";
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
-                    pttHint.innerText = "PUSH TO TALK";
                 }
             }
-        }
-
-        function generateSubtone(freq, ms) {
-            if (!audioCtx || audioCtx.state === 'suspended') return;
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.3, audioCtx.currentTime); 
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + (ms / 1000));
         }
 
         function startVUMeter() {
             const data = new Uint8Array(256);
+            let smoothLevel = 0; 
+
             function draw() {
                 requestAnimationFrame(draw);
-                const active = isTransmitting ? txAnalyser : (rxCount > 0 ? rxAnalyser : null);
-                if (active) active.getByteFrequencyData(data);
-                
-                let sum = 0;
-                for(let i = 0; i < 40; i++) sum += data[i];
-                let avg = active ? sum / 40 : 0;
+                let valorAtual = 0;
+
+                if (isTransmitting) {
+                    txAnalyser.getByteFrequencyData(data);
+                    let sum = 0; 
+                    for(let i = 0; i < 60; i++) sum += data[i];
+                    
+                    // GANHO: 1.5 + Compressão Dinâmica (0.8) para realismo
+                    let rawLevel = (sum / 60) * 1.5;
+                    valorAtual = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
+                    
+                } else if (activeSpeakers.size > 0) {
+                    activeSpeakers.forEach(id => {
+                        if (peers[id] && peers[id].analyser) {
+                            peers[id].analyser.getByteFrequencyData(data);
+                            let sum = 0; 
+                            for(let i = 0; i < 60; i++) sum += data[i];
+                            
+                            let rawLevel = (sum / 60) * 1.5;
+                            let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
+                            
+                            if (currentAvg > valorAtual) valorAtual = currentAvg;
+                        }
+                    });
+                }
+
+                // Suavização do movimento
+                smoothLevel = (smoothLevel * 0.7) + (valorAtual * 0.3);
+
+                if (smoothLevel > 255) smoothLevel = 255;
                 
                 ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
-                let w = (avg / 255) * canvasVU.width;
+                let w = (smoothLevel / 255) * canvasVU.width;
                 
                 let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-                gradient.addColorStop(0, '#00ff7f');
-                gradient.addColorStop(0.7, '#ffcc00');
+                gradient.addColorStop(0, '#00ff7f'); 
+                gradient.addColorStop(0.7, '#ffcc00'); 
                 gradient.addColorStop(1, '#ff3333');
                 
-                ctxVU.fillStyle = gradient;
+                ctxVU.fillStyle = gradient; 
                 ctxVU.fillRect(0, 0, w, canvasVU.height);
                 
                 ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
-                for(let i = 0; i < canvasVU.width; i += 10) {
-                    ctxVU.fillRect(i, 0, 3, canvasVU.height);
-                }
+                for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 3, canvasVU.height);
             }
             draw();
         }
+
+        // SUPORTE À TECLA F7
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'F7') {
+                e.preventDefault();
+                if (!f7Pressed) { f7Pressed = true; startPTT(); }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'F7') { e.preventDefault(); f7Pressed = false; stopPTT(); }
+        });
     </script>
 </body>
 </html>
