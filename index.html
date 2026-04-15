@@ -37,8 +37,8 @@
             justify-content: center;
             width: 100%;
             height: 100%;
-            /* Garante que o espaço da antena (75px) seja respeitado na centralização */
-            padding-top: 75px; 
+            /* Ajustado para compensar a antena maior na centralização */
+            padding-top: 100px; 
         }
 
         .radio-chassis {
@@ -56,13 +56,13 @@
             user-select: none;
         }
 
-        /* 📡 ANTENA - MANTIDA ORIGINAL */
+        /* 📡 ANTENA - COMPRIMENTO AUMENTADO */
         .antenna {
             position: absolute; 
-            top: -75px; 
+            top: -105px; /* Subiu mais para acompanhar o tamanho */
             right: 15%; 
             width: 40px; 
-            height: 72px; 
+            height: 105px; /* Aumentado conforme solicitado */
             background: linear-gradient(to right, #1a1a1a, #333, #1a1a1a);
             border-radius: 18px 18px 0 0; 
             border: 1px solid #000; 
