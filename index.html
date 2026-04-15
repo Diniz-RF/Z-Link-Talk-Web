@@ -181,8 +181,8 @@
         </div>
 
         <div class="display-panel">
-            <div id="status">Iniciando...</div>
-            <div id="peer-count">Conectando ao servidor...</div>
+            <div id="status">Conectando...</div>
+            <div id="peer-count">Buscando usuários...</div>
             <canvas id="vu-meter" width="300" height="10"></canvas>
         </div>
         
@@ -213,29 +213,32 @@
         const peerCountEl = document.getElementById('peer-count');
         const audioContainer = document.getElementById('audio-container');
 
-        let ws, myId = null, localStream = null, audioCtx, txAnalyser, rxAnalyser;
+        let ws, myId = null, localStream, audioCtx, txAnalyser, rxAnalyser;
         let peers = {}, isTransmitting = false, pttPressed = false, rxCount = 0;
-        let isF7Pressed = false;
         
-        // Trilha de silêncio para manter o WebRTC vivo sem usar o mic
-        let dummyTrack = null;
-        let dummyStream = null;
+        // Controle de tecla F7
+        let isF7Pressed = false;
 
-        window.addEventListener('load', () => {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            txAnalyser = audioCtx.createAnalyser();
-            rxAnalyser = audioCtx.createAnalyser();
-            txAnalyser.fftSize = 256;
-            rxAnalyser.fftSize = 256;
-            
-            // Criando o "Dummy Track" (Trilha Mudo)
-            const dest = audioCtx.createMediaStreamDestination();
-            dummyTrack = dest.stream.getAudioTracks()[0];
-            dummyStream = new MediaStream([dummyTrack]);
-
-            startVUMeter();
-            connectWebSocket();
+        window.addEventListener('load', async () => {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+                });
+                localStream.getAudioTracks()[0].enabled = false;
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                txAnalyser = audioCtx.createAnalyser();
+                rxAnalyser = audioCtx.createAnalyser();
+                txAnalyser.fftSize = 256;
+                rxAnalyser.fftSize = 256;
+                const source = audioCtx.createMediaStreamSource(localStream);
+                source.connect(txAnalyser);
+                startVUMeter();
+                connectWebSocket();
+            } catch (err) {
+                statusEl.innerText = "ERRO DE MIC";
+                statusEl.classList.add('status-tx');
+            }
         });
 
         function connectWebSocket() {
@@ -291,12 +294,7 @@
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null };
-            
-            // Adiciona a trilha de silêncio para garantir um sender válido no WebRTC
-            if (dummyTrack && dummyStream) {
-                pc.addTrack(dummyTrack, dummyStream);
-            }
-
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -325,61 +323,24 @@
             peerCountEl.innerText = `${count} ${count === 1 ? 'usuário conectado' : 'usuários conectados'}`; 
         }
 
-        async function startPTT(e) {
+        function startPTT(e) {
             if (e && e.pointerId) pttBtn.setPointerCapture(e.pointerId);
             if (pttPressed || isTransmitting || rxCount > 0) return;
-            
-            try {
-                if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-                
-                // 🎙️ SOLICITA MICROFONE APENAS AO PRESSIONAR
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
-                });
-
-                const audioTrack = localStream.getAudioTracks()[0];
-                const source = audioCtx.createMediaStreamSource(localStream);
-                source.connect(txAnalyser);
-
-                // Substitui a trilha mudo pela trilha real do microfone nas conexões ativas
-                for (let id in peers) {
-                    const senders = peers[id].pc.getSenders();
-                    const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders[0];
-                    if (audioSender) audioSender.replaceTrack(audioTrack);
-                }
-
-                pttPressed = true; isTransmitting = true;
-                pttBtn.classList.add('active');
-                pttBtn.querySelector('.ptt-label').innerHTML = "<span>FALANDO...</span>";
-                statusEl.innerText = "Transmitindo";
-                statusEl.className = "status-tx";
-                ws.send(JSON.stringify({ type: "start_tx" }));
-
-            } catch (err) {
-                console.error("Erro ao acessar mic:", err);
-                statusEl.innerText = "ERRO DE MIC";
-            }
+            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+            pttPressed = true; isTransmitting = true;
+            localStream.getAudioTracks()[0].enabled = true;
+            pttBtn.classList.add('active');
+            pttBtn.querySelector('.ptt-label').innerHTML = "<span>FALANDO...</span>";
+            statusEl.innerText = "Transmitindo";
+            statusEl.className = "status-tx";
+            ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
         function stopPTT(e) {
             if (e && e.pointerId && pttBtn.hasPointerCapture(e.pointerId)) pttBtn.releasePointerCapture(e.pointerId);
             if (!pttPressed || !isTransmitting) return;
-
             pttPressed = false; isTransmitting = false;
-
-            // Retorna a trilha para o Mudo (Dummy Track) para os peers antes de desligar o mic local
-            for (let id in peers) {
-                const senders = peers[id].pc.getSenders();
-                const audioSender = senders.find(s => s.track && s.track.kind === 'audio') || senders[0];
-                if (audioSender) audioSender.replaceTrack(dummyTrack);
-            }
-
-            // 🛑 PARA COMPLETAMENTE O MICROFONE (HARDWARE)
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-
+            localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
             pttBtn.querySelector('.ptt-label').innerHTML = "<span>PRESSIONE</span><span>PARA</span><span>FALAR</span>";
             statusEl.innerText = "Canal Livre";
@@ -387,12 +348,14 @@
             ws.send(JSON.stringify({ type: "stop_tx" }));
         }
 
+        // EVENTOS POINTER (Touch/Mouse)
         pttBtn.addEventListener('pointerdown', startPTT);
         pttBtn.addEventListener('pointerup', stopPTT);
         pttBtn.addEventListener('pointercancel', stopPTT);
         pttBtn.addEventListener('pointerleave', stopPTT);
         window.addEventListener('pointerup', stopPTT);
 
+        // EVENTOS DE TECLADO (F7)
         window.addEventListener('keydown', (e) => {
             if (e.key === 'F7') {
                 e.preventDefault();
@@ -447,8 +410,6 @@
             function draw() {
                 requestAnimationFrame(draw);
                 const active = isTransmitting ? txAnalyser : rxAnalyser;
-                if (!active) return;
-                
                 active.getByteFrequencyData(data);
                 let sum = 0;
                 for(let i = 0; i < 40; i++) sum += data[i];
