@@ -174,7 +174,6 @@
             transition: all 0.1s ease; outline: none; touch-action: none;
         }
 
-        /* 🟢 RECRIAÇÃO DO ELEMENTO LUMINOSO (CORREÇÃO) */
         #ptt-btn::after {
             content: "";
             position: absolute;
@@ -185,7 +184,6 @@
             transition: 0.2s ease;
         }
 
-        /* ✨ ANIMAÇÕES DE TX/RX */
         #ptt-btn.active::after {
             border-color: var(--glow-red);
             box-shadow: 0 0 25px var(--glow-red);
@@ -277,6 +275,20 @@
         let isTransmitting = false;
         let activeSpeakers = new Set();
         let f7Pressed = false;
+
+        // --- SUBTOMS DE RÁDIO ---
+        function playTone(freq, duration) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = freq;
+            gain.gain.value = 0.15;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + (duration / 1000));
+        }
 
         window.addEventListener('load', async () => {
             try {
@@ -392,11 +404,13 @@
         function handleRemoteTX(isStart, senderId) {
             if (isStart) {
                 activeSpeakers.add(senderId);
+                playTone(18500, 50); // Beep início recepção
                 statusEl.innerText = "Recebendo";
                 displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
             } else {
                 activeSpeakers.delete(senderId);
+                playTone(17500, 100); // Beep fim recepção
                 if (activeSpeakers.size === 0) {
                     statusEl.innerText = "Canal Livre";
                     displayWrapper.classList.remove('status-rx');
