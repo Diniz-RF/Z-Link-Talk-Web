@@ -19,32 +19,102 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0; background: var(--body-bg); color: #fff;
+            margin: 0; 
+            background: var(--body-bg); 
+            color: #fff;
             font-family: 'Segoe UI', Arial, sans-serif;
-            display: flex; align-items: center; justify-content: center;
-            min-height: 100vh; overflow: hidden;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .viewport-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
         }
 
         .radio-chassis {
             position: relative; 
-            width: 360px; 
-            height: 710px; /* Altura ajustada para evitar sobreposição inferior */
-            background: var(--radio-gradient); border-radius: 45px;
+            width: 95vw;
+            max-width: 360px; 
+            min-height: 650px;
+            background: var(--radio-gradient); 
+            border-radius: 45px;
             border: 2px solid var(--radio-border);
             box-shadow: 0 0 50px rgba(0, 242, 255, 0.1), 0 30px 60px rgba(0,0,0,0.7), inset 0 2px 3px var(--metal-shine);
-            display: flex; flex-direction: column; padding: 25px 20px; user-select: none;
+            display: flex; 
+            flex-direction: column; 
+            padding: 25px 20px; 
+            user-select: none;
+            transition: transform 0.3s ease;
         }
 
+        /* 📡 ANTENA */
         .antenna {
-            position: absolute; top: -65px; right: 50px; width: 38px; height: 85px;
+            position: absolute; 
+            top: -75px; 
+            right: 15%; 
+            width: 40px; 
+            height: 72px; 
             background: linear-gradient(to right, #1a1a1a, #333, #1a1a1a);
-            border-radius: 10px 10px 0 0; border: 1px solid #000; z-index: -1;
+            border-radius: 18px 18px 0 0; 
+            border: 1px solid #000; 
+            z-index: -1;
         }
 
+        .antenna::after {
+            content: "";
+            position: absolute;
+            bottom: -7px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 52px; 
+            height: 12px;
+            background: var(--radio-gradient);
+            filter: brightness(0.6) contrast(1.2);
+            border: 1px solid rgba(0,0,0,0.5);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -2px 3px rgba(0,0,0,0.5);
+            z-index: -1;
+        }
+
+        /* 🔘 KNOB - ELEVADO LEVEMENTE */
         .knob {
-            position: absolute; top: -40px; left: 60px; width: 55px; height: 45px;
+            position: absolute; 
+            top: -45px; /* Elevado de -40px para -45px */
+            left: 22%; 
+            transform: translateX(-50%);
+            width: 56px; 
+            height: 42px; 
             background: linear-gradient(to right, #222, #444, #222);
-            border-radius: 12px 12px 0 0; border: 1px solid #000; border-top: 3px solid var(--glow-red); z-index: -1;
+            border-radius: 10px 10px 0 0; 
+            border: 1px solid #000; 
+            border-top: 3px solid var(--glow-red); 
+            z-index: -1;
+        }
+
+        .knob::before {
+            content: "";
+            position: absolute;
+            bottom: -6px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 66px; 
+            height: 10px;
+            background: var(--radio-gradient);
+            filter: brightness(0.6) contrast(1.2);
+            border: 1px solid rgba(0,0,0,0.5);
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            box-shadow: 0 -2px 3px rgba(0,0,0,0.5);
+            z-index: -2;
         }
 
         .screw {
@@ -52,15 +122,17 @@
             background: radial-gradient(circle at 30% 30%, #666, #111);
             border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
-        .s-tl { top: 20px; left: 20px; } 
-        .s-tr { top: 20px; right: 20px; }
-        .s-bl { bottom: 15px; left: 20px; } 
-        .s-br { bottom: 15px; right: 20px; }
+        
+        .s-tl { top: 30px; left: 25px; } 
+        .s-tr { top: 30px; right: 25px; }
+        .s-bl { bottom: 15px; left: 25px; } 
+        .s-br { bottom: 15px; right: 25px; }
 
         .display-area {
             background: var(--display-bg); border: 6px solid #1a1a1a; border-radius: 18px;
-            padding: 20px 15px; box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
-            margin-top: 10px; margin-bottom: 20px; position: relative;
+            padding: 15px 10px; box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
+            margin-top: 25px; 
+            margin-bottom: 20px; position: relative;
             display: flex; flex-direction: column; align-items: center; text-align: center;
         }
 
@@ -70,7 +142,7 @@
             background-size: 100% 4px; pointer-events: none; z-index: 1; border-radius: 12px;
         }
 
-        #brand { font-size: 36px; font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--glow-cyan); margin: 0; z-index: 2; }
+        #brand { font-size: clamp(24px, 8vw, 36px); font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--glow-cyan); margin: 0; z-index: 2; }
         .dev-credit { font-size: 10px; color: #63b3ed; opacity: 0.6; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; margin-bottom: 10px; font-weight: 600; z-index: 2; }
         
         #status { 
@@ -90,32 +162,44 @@
         .vu-scale { display: flex; justify-content: space-between; font-size: 9px; color: #444; margin-bottom: 6px; font-weight: bold; }
         canvas#vu-meter { width: 100%; height: 14px; background: #000; border-radius: 4px; border: 1px solid #1a1a1a; }
 
-        .ptt-section { flex: 1; display: flex; align-items: center; justify-content: center; }
+        .ptt-section { flex: 1; display: flex; align-items: center; justify-content: center; padding: 20px 0; }
+        
         #ptt-btn {
-            width: 230px; height: 230px; border-radius: 50%; border: 12px solid #14161a;
+            width: clamp(180px, 50vw, 230px); 
+            height: clamp(180px, 50vw, 230px); 
+            border-radius: 50%; border: 12px solid #14161a;
             background: radial-gradient(circle at 35% 35%, #5a626d 0%, #2c313a 45%, #14161a 100%);
             cursor: pointer; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
             box-shadow: 0 20px 40px rgba(0,0,0,0.8), inset 0 4px 8px rgba(255,255,255,0.2);
             transition: all 0.1s ease; outline: none; touch-action: none;
         }
 
-        #ptt-btn::after {
-            content: ""; position: absolute; top: -6px; left: -6px; right: -6px; bottom: -6px;
-            border-radius: 50%; border: 4px solid transparent; transition: all 0.3s ease;
-        }
         #ptt-btn.active { transform: scale(0.94); }
         #ptt-btn.active::after { border-color: var(--glow-red); box-shadow: 0 0 30px var(--glow-red); }
         #ptt-btn.receiving::after { border-color: var(--glow-green); box-shadow: 0 0 30px var(--glow-green); }
 
-        .ptt-label-main { font-size: 38px; font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
-        .ptt-label-sub { font-size: 11px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
+        .ptt-label-main { font-size: clamp(28px, 6vw, 38px); font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
+        .ptt-label-sub { font-size: 10px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
 
         .speaker-grill {
-            height: 110px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
+            height: 100px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
             background-size: 7px 7px; background-color: #1a1d23; border-radius: 25px; border: 2px solid #111;
-            margin-top: 35px;
-            margin-bottom: 20px;
+            margin-top: 15px;
+            margin-bottom: 10px;
             box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
+        }
+
+        @media (max-height: 850px) {
+            .radio-chassis { transform: scale(0.9); transform-origin: center; }
+        }
+
+        @media (max-height: 750px) {
+            .radio-chassis { transform: scale(0.8); }
+        }
+
+        @media (max-height: 650px) {
+            .radio-chassis { transform: scale(0.7); }
+            .speaker-grill { height: 70px; }
         }
 
         #audio-container { display: none; }
@@ -123,32 +207,35 @@
 </head>
 <body>
 
-    <div class="radio-chassis">
-        <div class="antenna"></div>
-        <div class="knob"></div>
-        <div class="screw s-tl"></div><div class="screw s-tr"></div>
-        <div class="screw s-bl"></div><div class="screw s-br"></div>
+    <div class="viewport-wrapper">
+        <div class="radio-chassis">
+            <div class="antenna"></div>
+            <div class="knob"></div>
+            <div class="screw s-tl"></div><div class="screw s-tr"></div>
+            <div class="screw s-bl"></div><div class="screw s-br"></div>
 
-        <div class="display-area" id="display-wrapper">
-            <h1 id="brand">Z-Link Talk</h1>
-            <div class="dev-credit">Desenvolvido por Diniz-RF</div>
-            
-            <div id="status">Conectando...</div>
-            <div id="peer-count">CONECTADOS AGORA: 0</div>
-            
-            <div class="vu-container">
-                <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
-                <canvas id="vu-meter" width="300" height="14"></canvas>
+            <div class="display-area" id="display-wrapper">
+                <h1 id="brand">Z-Link Talk</h1>
+                <div class="dev-credit">Desenvolvido por Diniz-RF</div>
+                
+                <div id="status">Conectando...</div>
+                <div id="peer-count">CONECTADOS AGORA: 0</div>
+                
+                <div class="vu-container">
+                    <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
+                    <canvas id="vu-meter" width="300" height="14"></canvas>
+                </div>
             </div>
-        </div>
 
-        <div class="ptt-section">
-            <button id="ptt-btn">
-                <div class="ptt-label-main">PTT</div>
-                <div class="ptt-label-sub" id="ptt-hint">PUSH TO TALK</div>
-            </button>
+            <div class="ptt-section">
+                <button id="ptt-btn">
+                    <div class="ptt-label-main">PTT</div>
+                    <div class="ptt-label-sub" id="ptt-hint">PUSH TO TALK</div>
+                </button>
+            </div>
+            
+            <div class="speaker-grill"></div>
         </div>
-        <div class="speaker-grill"></div>
     </div>
 
     <div id="audio-container"></div>
@@ -302,58 +389,38 @@
         function startVUMeter() {
             const data = new Uint8Array(256);
             let smoothLevel = 0; 
-
             function draw() {
                 requestAnimationFrame(draw);
                 let valorAtual = 0;
-
                 if (isTransmitting) {
                     txAnalyser.getByteFrequencyData(data);
-                    let sum = 0; 
-                    for(let i = 0; i < 60; i++) sum += data[i];
-                    
-                    // GANHO: 1.5 + Compressão Dinâmica (0.8) para realismo
+                    let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
                     let rawLevel = (sum / 60) * 1.5;
                     valorAtual = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
-                    
                 } else if (activeSpeakers.size > 0) {
                     activeSpeakers.forEach(id => {
                         if (peers[id] && peers[id].analyser) {
                             peers[id].analyser.getByteFrequencyData(data);
-                            let sum = 0; 
-                            for(let i = 0; i < 60; i++) sum += data[i];
-                            
+                            let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
                             let rawLevel = (sum / 60) * 1.5;
                             let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
-                            
                             if (currentAvg > valorAtual) valorAtual = currentAvg;
                         }
                     });
                 }
-
-                // Suavização do movimento
                 smoothLevel = (smoothLevel * 0.7) + (valorAtual * 0.3);
-
                 if (smoothLevel > 255) smoothLevel = 255;
-                
                 ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
                 let w = (smoothLevel / 255) * canvasVU.width;
-                
                 let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-                gradient.addColorStop(0, '#00ff7f'); 
-                gradient.addColorStop(0.7, '#ffcc00'); 
-                gradient.addColorStop(1, '#ff3333');
-                
-                ctxVU.fillStyle = gradient; 
-                ctxVU.fillRect(0, 0, w, canvasVU.height);
-                
+                gradient.addColorStop(0, '#00ff7f'); gradient.addColorStop(0.7, '#ffcc00'); gradient.addColorStop(1, '#ff3333');
+                ctxVU.fillStyle = gradient; ctxVU.fillRect(0, 0, w, canvasVU.height);
                 ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
                 for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 3, canvasVU.height);
             }
             draw();
         }
 
-        // SUPORTE À TECLA F7
         document.addEventListener('keydown', (e) => {
             if (e.key === 'F7') {
                 e.preventDefault();
