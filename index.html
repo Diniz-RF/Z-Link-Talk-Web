@@ -6,200 +6,244 @@
     <title>Z-Link Talk | Diniz-RF</title>
     <style>
         :root {
-            --bg-color: #0d0f12;
-            --radio-body: #1a1d23;
-            --display-bg: #000000;
-            --text-main: #e0e6ed;
-            --text-dim: #6c757d;
-            --accent-blue: #007bff;
-            --accent-green: #28a745;
-            --accent-red: #dc3545;
+            --body-bg: #050505;
+            --radio-base: #1c1f24;
+            --radio-border: #2a2e35;
+            --display-bg: #030a0e;
+            --glow-cyan: #00f2ff;
+            --glow-red: #ff3c3c;
+            --glow-green: #3cfb3c;
+            --metal-shine: rgba(255,255,255,0.05);
         }
 
-        * {
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--body-bg);
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
-        #app-screen {
-            width: 90%;
-            max-width: 380px;
-            background-color: var(--radio-body);
+        /* Estrutura Externa do Rádio */
+        .radio-chassis {
+            position: relative;
+            width: 360px;
+            height: 680px;
+            background: linear-gradient(145deg, #23272d, #14171a);
             border-radius: 40px;
-            padding: 40px 25px;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.9), inset 0 2px 5px rgba(255,255,255,0.05);
-            border: 1px solid #2a2e35;
+            border: 4px solid #111;
+            box-shadow: 0 50px 100px rgba(0,0,0,0.8), inset 0 2px 10px var(--metal-shine);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            user-select: none;
+        }
+
+        /* Detalhes de Hardware */
+        .antenna {
+            position: absolute;
+            top: -60px; right: 50px;
+            width: 35px; height: 80px;
+            background: linear-gradient(to right, #111, #222, #111);
+            border-radius: 8px 8px 0 0;
+            z-index: -1;
+        }
+        .knob {
+            position: absolute;
+            top: -35px; left: 60px;
+            width: 50px; height: 40px;
+            background: linear-gradient(to right, #111, #333, #111);
+            border-radius: 10px 10px 0 0;
+            z-index: -1;
+            border-top: 2px solid #ff3c3c;
+        }
+
+        .screw {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: radial-gradient(circle, #444, #111);
+            border-radius: 50%;
+            box-shadow: inset 0 1px 2px #fff3;
+        }
+        .s-tl { top: 15px; left: 15px; } .s-tr { top: 15px; right: 15px; }
+        .s-bl { bottom: 15px; left: 15px; } .s-br { bottom: 15px; right: 15px; }
+
+        .dev-header {
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            gap: 25px;
+            font-size: 10px;
+            color: #555;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
         }
 
-        .header {
+        /* Painel do Display - CENTRALIZAÇÃO APLICADA */
+        .display-area {
+            background: #000;
+            border: 8px solid #222;
+            border-radius: 15px;
+            padding: 25px 15px;
+            box-shadow: inset 0 0 40px rgba(0,0,0,1);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            align-items: center; /* Centraliza horizontalmente */
+            justify-content: center; /* Equilibra verticalmente */
+            text-align: center;
         }
 
-        h1 {
-            font-size: 28px;
+        /* Overlay de brilho da tela */
+        .display-area::before {
+            content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.05) 50%);
+            background-size: 100% 4px; pointer-events: none; z-index: 1;
+        }
+
+        /* AJUSTES DE HIERARQUIA VISUAL */
+        #brand { 
+            font-size: 34px; /* Maior destaque */
+            font-weight: 800; 
+            color: var(--glow-cyan); 
+            text-shadow: 0 0 15px rgba(0, 242, 255, 0.6); 
             margin: 0;
             letter-spacing: 1px;
-            color: var(--accent-blue);
-            text-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
+            z-index: 2;
         }
 
-        .dev-tag {
-            font-size: 11px;
-            color: var(--text-dim);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
+        #status { 
+            font-size: 16px; /* Tamanho Médio */
+            margin: 10px 0; 
+            color: #888; 
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            font-weight: 600;
+            z-index: 2;
         }
 
-        .display-panel {
-            background-color: var(--display-bg);
-            border-radius: 15px;
-            padding: 20px 15px;
-            border: 2px solid #222;
-            box-shadow: inset 0 0 15px rgba(0,0,0,1);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        #status {
-            font-size: 18px;
-            font-weight: 800;
-            color: var(--text-dim);
-            text-transform: uppercase;
+        #peer-count { 
+            font-size: 11px; /* Tamanho Menor */
+            color: #4a5568; 
             letter-spacing: 1px;
-            transition: all 0.2s ease;
+            font-weight: bold;
+            z-index: 2;
         }
 
-        #peer-count {
-            font-size: 12px;
-            color: var(--text-dim);
-            opacity: 0.8;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        /* Cores dinâmicas de Status */
+        .status-tx #status { color: var(--glow-red); text-shadow: 0 0 10px var(--glow-red); }
+        .status-rx #status { color: var(--glow-green); text-shadow: 0 0 10px var(--glow-green); }
 
-        .status-tx { color: var(--accent-red) !important; text-shadow: 0 0 10px rgba(220, 53, 69, 0.6); }
-        .status-rx { color: var(--accent-green) !important; text-shadow: 0 0 10px rgba(40, 167, 69, 0.6); }
-
+        /* VU Meter */
+        .vu-container { margin-top: 20px; width: 100%; z-index: 2; }
+        .vu-scale { display: flex; justify-content: space-between; font-size: 8px; color: #333; margin-bottom: 5px; padding: 0 5px; }
         canvas#vu-meter {
-            width: 100%;
-            height: 10px;
-            border-radius: 5px;
-            background-color: #111;
-            margin-top: 5px;
+            width: 100%; height: 12px;
+            background: #0a0a0a;
+            border-radius: 2px;
         }
 
-        .ptt-container {
+        /* Botão PTT */
+        .ptt-section {
+            flex: 1;
             display: flex;
+            align-items: center;
             justify-content: center;
-            padding: 10px 0;
         }
 
         #ptt-btn {
-            width: 210px;
-            height: 210px;
+            width: 220px; height: 220px;
             border-radius: 50%;
-            border: 8px solid #121417;
-            background: radial-gradient(circle, #34495e 0%, #2c3e50 100%);
-            color: #f8f9fa; 
+            border: 10px solid #111;
+            background: radial-gradient(circle at 30% 30%, #3a3f46, #1a1d21);
             cursor: pointer;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.7), inset 0 2px 10px rgba(255,255,255,0.1);
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            outline: none;
-            touch-action: none;
             position: relative;
-        }
-
-        .ptt-label {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1);
+            transition: transform 0.1s;
+            outline: none;
+            touch-action: none;
         }
 
-        .ptt-label span {
-            font-size: 26px;
-            font-weight: 900;
-            line-height: 0.9;
-            text-transform: uppercase;
-            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        #ptt-btn::after {
+            content: ""; position: absolute;
+            top: -5px; left: -5px; right: -5px; bottom: -5px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            transition: all 0.3s ease;
         }
 
-        #ptt-btn.active {
-            transform: scale(0.95);
-            background: radial-gradient(circle, #e74c3c 0%, #c0392b 100%);
-            box-shadow: 0 0 40px rgba(231, 76, 60, 0.5), inset 0 5px 15px rgba(0,0,0,0.3);
-            border-color: #96281b;
-        }
+        #ptt-btn.active { transform: scale(0.96); }
+        #ptt-btn.active::after { border-color: var(--glow-red); box-shadow: 0 0 25px var(--glow-red); }
+        #ptt-btn.receiving::after { border-color: var(--glow-green); box-shadow: 0 0 25px var(--glow-green); }
 
-        #ptt-btn.receiving {
-            background: radial-gradient(circle, #2ecc71 0%, #27ae60 100%);
-            box-shadow: 0 0 40px rgba(46, 204, 113, 0.5);
-            border-color: #1e8449;
+        .ptt-label-main { font-size: 32px; font-weight: 900; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+        .ptt-label-sub { font-size: 10px; color: #666; letter-spacing: 1px; margin-top: 5px; text-transform: uppercase; }
+
+        /* Grade do Alto-falante */
+        .speaker-grill {
+            height: 100px; width: 100%;
+            background: radial-gradient(#000 25%, transparent 26%);
+            background-size: 6px 6px;
+            background-color: #16191d;
+            border-radius: 20px;
+            border: 2px solid #111;
+            margin-top: 20px;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,0.5);
         }
 
         #audio-container { display: none; }
-
-        @media (max-width: 360px) {
-            #app-screen { padding: 30px 15px; gap: 15px; }
-            #ptt-btn { width: 180px; height: 180px; }
-            .ptt-label span { font-size: 22px; }
-        }
     </style>
 </head>
 <body>
 
-    <div id="app-screen">
-        <div class="header">
-            <h1>Z-Link Talk</h1>
-            <span class="dev-tag">Desenvolvido por Diniz-RF</span>
+    <div class="radio-chassis">
+        <div class="antenna"></div>
+        <div class="knob"></div>
+        
+        <div class="screw s-tl"></div>
+        <div class="screw s-tr"></div>
+        <div class="screw s-bl"></div>
+        <div class="screw s-br"></div>
+
+        <div class="dev-header">Desenvolvido por Diniz-RF</div>
+
+        <div class="display-area" id="display-wrapper">
+            <h1 id="brand">Z-Link Talk</h1>
+            <div id="status">CONECTANDO...</div>
+            <div id="peer-count">BUSCANDO USUÁRIOS...</div>
+            
+            <div class="vu-container">
+                <div class="vu-scale">
+                    <span>1</span><span>3</span><span>5</span><span>7</span><span>9</span><span>11</span><span>13</span><span>MAX</span>
+                </div>
+                <canvas id="vu-meter" width="300" height="12"></canvas>
+            </div>
         </div>
 
-        <div class="display-panel">
-            <div id="status">Conectando...</div>
-            <div id="peer-count">Buscando usuários...</div>
-            <canvas id="vu-meter" width="300" height="10"></canvas>
-        </div>
-        
-        <div class="ptt-container">
+        <div class="ptt-section">
             <button id="ptt-btn">
-                <div class="ptt-label">
-                    <span>PRESSIONE</span>
-                    <span>PARA</span>
-                    <span>FALAR</span>
-                </div>
+                <div class="ptt-label-main">PTT</div>
+                <div class="ptt-label-sub" id="ptt-hint">Pressione e fale</div>
             </button>
         </div>
 
-        <div id="audio-container"></div>
+        <div class="speaker-grill"></div>
     </div>
 
+    <div id="audio-container"></div>
+
     <script>
+        // --- LÓGICA DE SISTEMA (INTACTA) ---
         const WS_URL = "wss://z-link-talk.onrender.com";
         const AUDIO_BITRATE = 32;
         const SUBTONE_START_FREQ = 18500;
@@ -208,15 +252,15 @@
 
         const pttBtn = document.getElementById('ptt-btn');
         const statusEl = document.getElementById('status');
+        const displayWrapper = document.getElementById('display-wrapper');
         const canvasVU = document.getElementById('vu-meter');
         const ctxVU = canvasVU.getContext('2d');
         const peerCountEl = document.getElementById('peer-count');
         const audioContainer = document.getElementById('audio-container');
+        const pttHint = document.getElementById('ptt-hint');
 
         let ws, myId = null, localStream, audioCtx, txAnalyser, rxAnalyser;
         let peers = {}, isTransmitting = false, pttPressed = false, rxCount = 0;
-        
-        // Controle de tecla F7
         let isF7Pressed = false;
 
         window.addEventListener('load', async () => {
@@ -237,7 +281,7 @@
                 connectWebSocket();
             } catch (err) {
                 statusEl.innerText = "ERRO DE MIC";
-                statusEl.classList.add('status-tx');
+                displayWrapper.className = "display-area status-tx";
             }
         });
 
@@ -245,7 +289,7 @@
             ws = new WebSocket(WS_URL);
             ws.onopen = () => { 
                 statusEl.innerText = "Canal Livre"; 
-                statusEl.className = ""; 
+                displayWrapper.className = "display-area"; 
             };
             ws.onmessage = async (event) => {
                 const data = JSON.parse(event.data);
@@ -320,7 +364,7 @@
         }
 
         function updatePeerCount(count) { 
-            peerCountEl.innerText = `${count} ${count === 1 ? 'usuário conectado' : 'usuários conectados'}`; 
+            peerCountEl.innerText = `USUÁRIOS CONECTADOS: ${count}`; 
         }
 
         function startPTT(e) {
@@ -330,9 +374,9 @@
             pttPressed = true; isTransmitting = true;
             localStream.getAudioTracks()[0].enabled = true;
             pttBtn.classList.add('active');
-            pttBtn.querySelector('.ptt-label').innerHTML = "<span>FALANDO...</span>";
+            pttHint.innerText = "TRANSMITINDO...";
             statusEl.innerText = "Transmitindo";
-            statusEl.className = "status-tx";
+            displayWrapper.classList.add('status-tx');
             ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
@@ -342,36 +386,23 @@
             pttPressed = false; isTransmitting = false;
             localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
-            pttBtn.querySelector('.ptt-label').innerHTML = "<span>PRESSIONE</span><span>PARA</span><span>FALAR</span>";
+            pttHint.innerText = "Pressione e fale";
             statusEl.innerText = "Canal Livre";
-            statusEl.className = "";
+            displayWrapper.classList.remove('status-tx');
             ws.send(JSON.stringify({ type: "stop_tx" }));
         }
 
-        // EVENTOS POINTER (Touch/Mouse)
         pttBtn.addEventListener('pointerdown', startPTT);
         pttBtn.addEventListener('pointerup', stopPTT);
         pttBtn.addEventListener('pointercancel', stopPTT);
         pttBtn.addEventListener('pointerleave', stopPTT);
         window.addEventListener('pointerup', stopPTT);
 
-        // EVENTOS DE TECLADO (F7)
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'F7') {
-                e.preventDefault();
-                if (!isF7Pressed) {
-                    isF7Pressed = true;
-                    startPTT();
-                }
-            }
+            if (e.key === 'F7') { e.preventDefault(); if (!isF7Pressed) { isF7Pressed = true; startPTT(); } }
         });
-
         window.addEventListener('keyup', (e) => {
-            if (e.key === 'F7') {
-                e.preventDefault();
-                isF7Pressed = false;
-                stopPTT();
-            }
+            if (e.key === 'F7') { e.preventDefault(); isF7Pressed = false; stopPTT(); }
         });
 
         function handleRemoteTX(isStart, senderId) {
@@ -379,17 +410,17 @@
                 rxCount++;
                 generateSubtone(SUBTONE_START_FREQ, 50);
                 statusEl.innerText = "Recebendo";
-                statusEl.className = "status-rx";
+                displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
-                pttBtn.querySelector('.ptt-label').innerHTML = "<span>OCUPADO</span>";
+                pttHint.innerText = "OCUPADO";
             } else {
                 rxCount = Math.max(0, rxCount - 1);
                 generateSubtone(SUBTONE_END_FREQ, 100);
                 if (rxCount === 0) {
                     statusEl.innerText = "Canal Livre";
-                    statusEl.className = "";
+                    displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
-                    pttBtn.querySelector('.ptt-label').innerHTML = "<span>PRESSIONE</span><span>PARA</span><span>FALAR</span>";
+                    pttHint.innerText = "Pressione e fale";
                 }
             }
         }
@@ -409,25 +440,28 @@
             const data = new Uint8Array(256);
             function draw() {
                 requestAnimationFrame(draw);
-                const active = isTransmitting ? txAnalyser : rxAnalyser;
-                active.getByteFrequencyData(data);
+                const active = isTransmitting ? txAnalyser : (rxCount > 0 ? rxAnalyser : null);
+                if (active) active.getByteFrequencyData(data);
+                
                 let sum = 0;
                 for(let i = 0; i < 40; i++) sum += data[i];
-                let avg = sum / 40;
+                let avg = active ? sum / 40 : 0;
+                
                 ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
                 let w = (avg / 255) * canvasVU.width;
-                if (!isTransmitting && rxCount === 0) w = 0;
                 
                 let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-                gradient.addColorStop(0, '#28a745');
-                gradient.addColorStop(0.6, '#ffc107');
-                gradient.addColorStop(1, '#dc3545');
+                gradient.addColorStop(0, '#2ecc71');
+                gradient.addColorStop(0.6, '#f1c40f');
+                gradient.addColorStop(1, '#e74c3c');
                 
                 ctxVU.fillStyle = gradient;
                 ctxVU.fillRect(0, 0, w, canvasVU.height);
                 
-                ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
-                for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 2, canvasVU.height);
+                ctxVU.fillStyle = 'rgba(0,0,0,0.4)';
+                for(let i = 0; i < canvasVU.width; i += 8) {
+                    ctxVU.fillRect(i, 0, 2, canvasVU.height);
+                }
             }
             draw();
         }
