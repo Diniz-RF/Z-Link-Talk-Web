@@ -37,6 +37,8 @@
             justify-content: center;
             width: 100%;
             height: 100%;
+            /* Garante que o espaço da antena (75px) seja respeitado na centralização */
+            padding-top: 75px; 
         }
 
         .radio-chassis {
@@ -52,10 +54,9 @@
             flex-direction: column; 
             padding: 25px 20px; 
             user-select: none;
-            transition: transform 0.3s ease;
         }
 
-        /* 📡 ANTENA */
+        /* 📡 ANTENA - MANTIDA ORIGINAL */
         .antenna {
             position: absolute; 
             top: -75px; 
@@ -85,7 +86,7 @@
             z-index: -1;
         }
 
-        /* 🔘 KNOB */
+        /* 🔘 KNOB - MANTIDO ORIGINAL */
         .knob {
             position: absolute; 
             top: -45px; 
@@ -145,15 +146,8 @@
         #brand { font-size: clamp(24px, 8vw, 36px); font-weight: 900; color: #fff; text-shadow: 0 0 20px var(--glow-cyan); margin: 0; z-index: 2; }
         .dev-credit { font-size: 10px; color: #63b3ed; opacity: 0.6; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; margin-bottom: 10px; font-weight: 600; z-index: 2; }
         
-        #status { 
-            font-size: 18px; margin: 5px 0; color: #b0b8c4; 
-            text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; 
-        }
-
-        #peer-count { 
-            font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; 
-            font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px;
-        }
+        #status { font-size: 18px; margin: 5px 0; color: #b0b8c4; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; }
+        #peer-count { font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px; }
 
         .status-tx #status { color: #ff5555; text-shadow: 0 0 15px var(--glow-red); }
         .status-rx #status { color: #55ff55; text-shadow: 0 0 15px var(--glow-green); }
@@ -175,24 +169,12 @@
         }
 
         #ptt-btn::after {
-            content: "";
-            position: absolute;
-            inset: -12px;
-            border-radius: 50%;
-            border: 4px solid transparent;
-            pointer-events: none;
-            transition: 0.2s ease;
+            content: ""; position: absolute; inset: -12px; border-radius: 50%;
+            border: 4px solid transparent; pointer-events: none; transition: 0.2s ease;
         }
 
-        #ptt-btn.active::after {
-            border-color: var(--glow-red);
-            box-shadow: 0 0 25px var(--glow-red);
-        }
-        #ptt-btn.receiving::after {
-            border-color: var(--glow-green);
-            box-shadow: 0 0 25px var(--glow-green);
-        }
-
+        #ptt-btn.active::after { border-color: var(--glow-red); box-shadow: 0 0 25px var(--glow-red); }
+        #ptt-btn.receiving::after { border-color: var(--glow-green); box-shadow: 0 0 25px var(--glow-green); }
         #ptt-btn.active { transform: scale(0.94); }
 
         .ptt-label-main { font-size: clamp(28px, 6vw, 38px); font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
@@ -201,19 +183,15 @@
         .speaker-grill {
             height: 100px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
             background-size: 7px 7px; background-color: #1a1d23; border-radius: 25px; border: 2px solid #111;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
+            margin-top: 15px; margin-bottom: 10px; box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
         }
 
         @media (max-height: 850px) {
             .radio-chassis { transform: scale(0.9); transform-origin: center; }
         }
-
         @media (max-height: 750px) {
             .radio-chassis { transform: scale(0.8); }
         }
-
         @media (max-height: 650px) {
             .radio-chassis { transform: scale(0.7); }
             .speaker-grill { height: 70px; }
@@ -234,10 +212,8 @@
             <div class="display-area" id="display-wrapper">
                 <h1 id="brand">Z-Link Talk</h1>
                 <div class="dev-credit">Desenvolvido por Diniz-RF</div>
-                
                 <div id="status">Conectando...</div>
                 <div id="peer-count">CONECTADOS AGORA: 0</div>
-                
                 <div class="vu-container">
                     <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
                     <canvas id="vu-meter" width="300" height="14"></canvas>
@@ -276,7 +252,6 @@
         let activeSpeakers = new Set();
         let f7Pressed = false;
 
-        // --- SUBTOMS DE RÁDIO ---
         function playTone(freq, duration) {
             if (!audioCtx) return;
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -404,13 +379,13 @@
         function handleRemoteTX(isStart, senderId) {
             if (isStart) {
                 activeSpeakers.add(senderId);
-                playTone(18500, 50); // Beep início recepção
+                playTone(18500, 50); 
                 statusEl.innerText = "Recebendo";
                 displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
             } else {
                 activeSpeakers.delete(senderId);
-                playTone(17500, 100); // Beep fim recepção
+                playTone(17500, 100); 
                 if (activeSpeakers.size === 0) {
                     statusEl.innerText = "Canal Livre";
                     displayWrapper.classList.remove('status-rx');
