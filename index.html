@@ -246,6 +246,7 @@
         let isTransmitting = false;
         let activeSpeakers = new Set();
         let f7Pressed = false;
+        let f2Pressed = false;
 
         function playTone(freq, duration) {
             if (!audioCtx) return;
@@ -429,10 +430,15 @@
                 e.preventDefault();
                 if (!f7Pressed) { f7Pressed = true; startPTT(); }
             }
+            if (e.key === 'F2') {
+                e.preventDefault();
+                if (!f2Pressed) { f2Pressed = true; startPTT(); }
+            }
         });
 
         document.addEventListener('keyup', (e) => {
             if (e.key === 'F7') { e.preventDefault(); f7Pressed = false; stopPTT(); }
+            if (e.key === 'F2') { e.preventDefault(); f2Pressed = false; stopPTT(); }
         });
     </script>
 </body>
