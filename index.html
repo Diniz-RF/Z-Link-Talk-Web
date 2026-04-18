@@ -943,9 +943,15 @@
 
             clone.onended = () => {
                 playTone(17500, 100);
+
+                // remover da memória após uso
+                clone.remove();
             };
 
-            clone.play().catch(() => {});
+            clone.play().catch(() => {
+                clone.remove();
+            });
+
         } catch (e) {}
     }
 
