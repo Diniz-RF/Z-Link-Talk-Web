@@ -71,12 +71,12 @@
         .antenna::after {
             content: "";
             position: absolute;
-            bottom: -2px; 
+            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
             left: 50%;
             transform: translateX(-50%);
             width: 52px; 
             height: 14px;
-            background: #111; 
+            background: #111; /* Cor sólida para destacar a base conforme imagem */
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
@@ -101,12 +101,12 @@
         .knob::before {
             content: "";
             position: absolute;
-            bottom: -2px; 
+            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
             left: 50%;
             transform: translateX(-50%);
             width: 66px; 
             height: 14px;
-            background: #111; 
+            background: #111; /* Cor sólida igual à base da antena */
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
@@ -145,7 +145,6 @@
         #peer-count { font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px; }
 
         .status-tx #status { color: #ff5555; text-shadow: 0 0 15px var(--glow-red); }
-        .status-tx .ptt-label-sub { color: #ff3c3c; text-shadow: 0 0 8px var(--glow-red); }
         .status-rx #status { color: #55ff55; text-shadow: 0 0 15px var(--glow-green); }
 
         .vu-container { margin-top: 15px; width: 100%; z-index: 2; }
@@ -264,10 +263,18 @@
 
         window.addEventListener('load', async () => {
             try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+                });
+                localStream.getAudioTracks()[0].enabled = false;
+                
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 txAnalyser = audioCtx.createAnalyser();
                 txAnalyser.fftSize = 256;
+                
+                const source = audioCtx.createMediaStreamSource(localStream);
+                source.connect(txAnalyser);
                 
                 startVUMeter();
                 connectWebSocket();
@@ -285,26 +292,12 @@
                 switch (data.type) {
                     case "init":
                         myId = data.id;
-                        for (const clientId of data.clients) {
-                            if (clientId !== myId) {
-                                await createPeerConnection(clientId, myId < clientId);
-                            }
-                        }
+                        data.clients.forEach(clientId => { if (clientId !== myId) createPeerConnection(clientId, true); });
                         updatePeerCount(data.clients.length);
                         break;
-                    case "new_peer": 
-                        if (data.id !== myId) {
-                            await createPeerConnection(data.id, myId < data.id);
-                        }
-                        updatePeerCount(Object.keys(peers).length + 2); 
-                        break;
+                    case "new_peer": updatePeerCount(Object.keys(peers).length + 2); break;
                     case "offer":
                         if (!peers[senderId]) await createPeerConnection(senderId, false);
-                        
-                        if (peers[senderId].pc.signalingState !== "stable") {
-                            await peers[senderId].pc.setLocalDescription({ type: "rollback" });
-                        }
-
                         await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answer = await peers[senderId].pc.createAnswer();
                         await peers[senderId].pc.setLocalDescription(answer);
@@ -329,9 +322,8 @@
 
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
-            const transceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
-            peers[peerId] = { pc, audioEl: null, analyser: null, sender: transceiver.sender };
-            
+            peers[peerId] = { pc, audioEl: null, analyser: null };
+            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -347,7 +339,6 @@
                     audio.play().catch(err => console.log(err));
                 }
             };
-
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -357,72 +348,21 @@
 
         function updatePeerCount(count) { peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; }
 
-        async function startPTT() {
+        function startPTT() {
             if (isTransmitting || activeSpeakers.size > 0) return;
-            
-            try {
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
-                });
-
-                isTransmitting = true;
-                
-                if (audioCtx.state === 'suspended') audioCtx.resume();
-                
-                const source = audioCtx.createMediaStreamSource(localStream);
-                source.connect(txAnalyser);
-
-                const track = localStream.getAudioTracks()[0];
-
-                for (const peer of Object.values(peers)) {
-                    if (peer.sender) {
-                        await peer.sender.replaceTrack(track);
-                    }
-                }
-
-                await new Promise(r => setTimeout(r, 200));
-
-                for (const [peerId, peer] of Object.entries(peers)) {
-                    if (peer.pc.signalingState !== "stable") continue;
-
-                    try {
-                        const offer = await peer.pc.createOffer();
-                        await peer.pc.setLocalDescription(offer);
-
-                        ws.send(JSON.stringify({
-                            type: "offer",
-                            to: peerId,
-                            offer: peer.pc.localDescription
-                        }));
-                    } catch (err) {
-                        console.log(err);
-                    }
-                }
-                
-                pttBtn.classList.add('active');
-                statusEl.innerText = "Transmitindo";
-                displayWrapper.classList.add('status-tx');
-                ws.send(JSON.stringify({ type: "start_tx" }));
-            } catch (err) {
-                statusEl.innerText = "ERRO MIC";
-            }
+            isTransmitting = true;
+            localStream.getAudioTracks()[0].enabled = true;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            pttBtn.classList.add('active');
+            statusEl.innerText = "Transmitindo";
+            displayWrapper.classList.add('status-tx');
+            ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
         function stopPTT() {
             if (!isTransmitting) return;
             isTransmitting = false;
-            
-            Object.values(peers).forEach(peer => {
-                if (peer.sender) {
-                    peer.sender.replaceTrack(null);
-                }
-            });
-
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                localStream = null;
-            }
-            
+            localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
             statusEl.innerText = "Canal Livre";
             displayWrapper.classList.remove('status-tx');
@@ -499,12 +439,6 @@
         document.addEventListener('keyup', (e) => {
             if (e.key === 'F7') { e.preventDefault(); f7Pressed = false; stopPTT(); }
             if (e.key === 'F2') { e.preventDefault(); f2Pressed = false; stopPTT(); }
-        });
-
-        document.addEventListener("visibilitychange", () => {
-            if (document.hidden) {
-                stopPTT();
-            }
         });
     </script>
 </body>
