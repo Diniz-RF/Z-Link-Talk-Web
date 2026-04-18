@@ -71,12 +71,12 @@
         .antenna::after {
             content: "";
             position: absolute;
-            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
+            bottom: -2px; 
             left: 50%;
             transform: translateX(-50%);
             width: 52px; 
             height: 14px;
-            background: #111; /* Cor sólida para destacar a base conforme imagem */
+            background: #111; 
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
@@ -101,12 +101,12 @@
         .knob::before {
             content: "";
             position: absolute;
-            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
+            bottom: -2px; 
             left: 50%;
             transform: translateX(-50%);
             width: 66px; 
             height: 14px;
-            background: #111; /* Cor sólida igual à base da antena */
+            background: #111; 
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
@@ -379,6 +379,12 @@
             if (!isTransmitting) return;
             isTransmitting = false;
             
+            Object.values(peers).forEach(peer => {
+                if (peer.sender) {
+                    peer.sender.replaceTrack(null);
+                }
+            });
+
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
