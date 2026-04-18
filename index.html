@@ -55,6 +55,35 @@
             user-select: none;
         }
 
+        .identity-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            z-index: 10;
+        }
+        #user-name-input {
+            flex: 1;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: var(--glow-cyan);
+            padding: 8px 12px;
+            font-size: 14px;
+            outline: none;
+        }
+        #save-identity-btn {
+            background: #2c313a;
+            border: 1px solid #4a5159;
+            border-radius: 8px;
+            color: #fff;
+            padding: 8px 15px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        #save-identity-btn:hover { background: #3a3f47; }
+
         .antenna {
             position: absolute; 
             top: -110px; 
@@ -125,7 +154,7 @@
         .display-area {
             background: var(--display-bg); border: 6px solid #1a1a1a; border-radius: 18px;
             padding: 15px 10px; box-shadow: inset 0 0 30px rgba(0,0,0,0.9);
-            margin-top: 25px; 
+            margin-top: 10px; 
             margin-bottom: 20px; position: relative;
             display: flex; flex-direction: column; align-items: center; text-align: center;
         }
@@ -140,7 +169,26 @@
         .dev-credit { font-size: 10px; color: #63b3ed; opacity: 0.6; text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; margin-bottom: 10px; font-weight: 600; z-index: 2; }
         
         #status { font-size: 18px; margin: 5px 0; color: #b0b8c4; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; }
-        #peer-count { font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px; }
+        
+        .rx-user {
+            height: 22px;
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #4ade80;
+            text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+            margin-top: 8px;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0.9;
+            transition: opacity 0.2s ease;
+            width: 100%;
+            z-index: 2;
+        }
+
+        #peer-count { font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px; cursor: pointer; }
 
         .status-tx #status { color: #ff5555; text-shadow: 0 0 15px var(--glow-red); }
         .status-rx #status { color: #55ff55; text-shadow: 0 0 15px var(--glow-green); }
@@ -179,6 +227,63 @@
             margin-top: 15px; margin-bottom: 10px; box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
         }
 
+        /* ESTILO DO MODAL DE USUÁRIOS */
+        .user-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+
+        .user-modal-content {
+            background: #1c1f26;
+            padding: 20px;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 300px;
+            border: 1px solid #4a5159;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .user-modal-content h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            color: var(--glow-cyan);
+            text-align: center;
+        }
+
+        #user-list {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .user-item {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        .user-item:last-child {
+            border-bottom: none;
+        }
+
+        #close-user-modal {
+            width: 100%;
+            margin-top: 15px;
+            background: #2c313a;
+            border: 1px solid #4a5159;
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
         @media (max-height: 850px) {
             .radio-chassis { transform: scale(0.9); transform-origin: center; }
         }
@@ -202,10 +307,16 @@
             <div class="screw s-tl"></div><div class="screw s-tr"></div>
             <div class="screw s-bl"></div><div class="screw s-br"></div>
 
+            <div class="identity-bar">
+                <input type="text" id="user-name-input" placeholder="Seu Nome">
+                <button id="save-identity-btn">SALVAR</button>
+            </div>
+
             <div class="display-area" id="display-wrapper">
                 <h1 id="brand">Z-Link Talk</h1>
                 <div class="dev-credit">Desenvolvido por Diniz-RF</div>
                 <div id="status">INICIANDO...</div>
+                <div id="rx-user" class="rx-user"></div>
                 <div id="peer-count">CONECTADOS AGORA: 0</div>
                 <div class="vu-container">
                     <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
@@ -224,12 +335,19 @@
         </div>
     </div>
 
+    <div id="user-modal" class="user-modal">
+      <div class="user-modal-content">
+        <h3>Usuários Conectados</h3>
+        <div id="user-list"></div>
+        <button id="close-user-modal">Fechar</button>
+      </div>
+    </div>
+
     <div id="audio-container"></div>
 
     <script>
         /**
          * Z-LINK TALK | RADIO PTT PROFESSIONAL CORE
-         * CONFIGURAÇÕES E ESTADOS
          */
         const WS_URL = "wss://z-link-talk.onrender.com";
         const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
@@ -242,11 +360,18 @@
 
         const pttBtn = document.getElementById('ptt-btn');
         const statusEl = document.getElementById('status');
+        const rxUserEl = document.getElementById('rx-user');
         const displayWrapper = document.getElementById('display-wrapper');
         const canvasVU = document.getElementById('vu-meter');
         const ctxVU = canvasVU.getContext('2d');
         const peerCountEl = document.getElementById('peer-count');
         const audioContainer = document.getElementById('audio-container');
+        const nameInput = document.getElementById('user-name-input');
+        const saveBtn = document.getElementById('save-identity-btn');
+        
+        // ELEMENTOS DO MODAL
+        const modal = document.getElementById("user-modal");
+        const userListEl = document.getElementById("user-list");
 
         let ws = null;
         let connectionId = 0; 
@@ -254,6 +379,7 @@
         
         let myId = null, localStream, audioCtx, txAnalyser;
         let peers = {}; 
+        let users = {}; // LISTA DE USUÁRIOS
         let isTransmitting = false;
         let activeSpeakers = new Set();
         let lastPttAction = 0; 
@@ -269,7 +395,34 @@
         let f7Pressed = false;
         let f2Pressed = false;
 
+        let userId;
+        let userName;
+
+        function initIdentity() {
+            userId = localStorage.getItem("zlink_user_id");
+            if (!userId) {
+                userId = "user-" + Math.random().toString(36).substr(2, 9) + Date.now().toString(36).substr(-4);
+                localStorage.setItem("zlink_user_id", userId);
+            }
+            userName = localStorage.getItem("zlink_user_name") || "";
+            nameInput.value = userName;
+        }
+
+        saveBtn.addEventListener('click', () => {
+            userName = nameInput.value.trim();
+            localStorage.setItem("zlink_user_name", userName);
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                safeSend({
+                    type: "identify",
+                    userId: userId,
+                    name: userName
+                }, connectionId);
+            }
+            alert("Identidade salva!");
+        });
+
         window.addEventListener('load', async () => {
+            initIdentity();
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
@@ -294,7 +447,6 @@
 
         function connectWebSocket() {
             if (ws) {
-                console.warn("Limpando instância anterior de WebSocket...");
                 ws.onclose = null;
                 ws.onerror = null;
                 ws.onmessage = null;
@@ -313,53 +465,54 @@
             clearTimeout(connInitialTimeout);
             
             setAppState(currentBackoffIdx > 0 ? APP_STATES.RECONNECTING : APP_STATES.CONNECTING);
-            console.log(`[ID:${activeId}] Iniciando tentativa de conexão...`);
 
             ws = new WebSocket(WS_URL);
 
             connInitialTimeout = setTimeout(() => {
                 if (activeId === connectionId && (!ws || ws.readyState !== WebSocket.OPEN)) {
-                    console.warn(`[ID:${activeId}] Timeout de conexão inicial atingido.`);
                     forceReconnection();
                 }
             }, 5000);
 
             ws.onopen = () => {
                 if (activeId !== connectionId) return;
-                console.log(`[ID:${activeId}] Conectado com sucesso.`);
-                
                 isReconnecting = false;
                 clearTimeout(connInitialTimeout);
                 currentBackoffIdx = 0;
                 setAppState(APP_STATES.CONNECTED);
+                
+                safeSend({
+                    type: "identify",
+                    userId: userId,
+                    name: userName
+                }, activeId);
+
                 iniciarHeartbeat(activeId);
             };
 
             ws.onmessage = async (event) => {
                 if (activeId !== connectionId) return;
-                
                 const data = JSON.parse(event.data);
-                
-                if (data.type === "pong") {
-                    clearTimeout(pongTimeout);
-                    return;
-                }
+                if (data.type === "pong") { clearTimeout(pongTimeout); return; }
 
                 const senderId = data.from || data.id;
 
                 switch (data.type) {
                     case "init":
                         myId = data.id;
-                        data.clients.forEach(clientId => { 
-                            if (clientId !== myId) createPeerConnection(clientId, true, activeId); 
+                        users = {}; // Reset local list
+                        data.clients.forEach(client => {
+                            users[client.id] = client.name || client.id;
+                            if (client.id !== myId) {
+                                createPeerConnection(client.id, true, activeId);
+                            }
                         });
                         updatePeerCount(data.clients.length);
                         break;
-
                     case "new_peer": 
-                        updatePeerCount(Object.keys(peers).length + 2); 
+                        users[data.id] = data.name || data.id;
+                        updatePeerCount(Object.keys(users).length); 
                         break;
-
                     case "offer":
                         if (!peers[senderId]) await createPeerConnection(senderId, false, activeId);
                         if (activeId !== connectionId) return;
@@ -368,40 +521,34 @@
                         await peers[senderId].pc.setLocalDescription(answer);
                         safeSend({ type: "answer", to: senderId, answer: peers[senderId].pc.localDescription }, activeId);
                         break;
-
                     case "answer": 
                         if (peers[senderId]) await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer)); 
                         break;
-
                     case "ice_candidate": 
                         if (peers[senderId]) await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate)); 
                         break;
-
                     case "start_tx": 
-                        handleRemoteTX(true, senderId); 
+                        handleRemoteTX(true, senderId, data.name); 
                         break;
-
                     case "stop_tx": 
-                        handleRemoteTX(false, senderId); 
+                        handleRemoteTX(false, senderId, data.name); 
                         break;
-
                     case "peer_left":
+                        delete users[data.id];
                         removerPeer(data.id);
-                        updatePeerCount(Object.keys(peers).length + 1);
+                        updatePeerCount(Object.keys(users).length);
                         break;
                 }
             };
 
             ws.onclose = () => {
                 if (activeId !== connectionId) return;
-                console.warn(`[ID:${activeId}] WebSocket fechado.`);
                 ws = null;
                 forceReconnection();
             };
 
-            ws.onerror = (err) => {
+            ws.onerror = () => {
                 if (activeId !== connectionId) return;
-                console.error(`[ID:${activeId}] Erro no WebSocket.`);
                 if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
             };
         }
@@ -413,15 +560,10 @@
                     pararHeartbeat();
                     return;
                 }
-
                 safeSend({ type: "ping" }, activeId);
-
                 clearTimeout(pongTimeout);
                 pongTimeout = setTimeout(() => {
-                    if (activeId === connectionId) {
-                        console.error(`[ID:${activeId}] Heartbeat falhou (Morte Cerebral).`);
-                        forceReconnection();
-                    }
+                    if (activeId === connectionId) forceReconnection();
                 }, 10000); 
             }, 5000); 
         }
@@ -434,12 +576,15 @@
         function setAppState(state) {
             currentAppState = state;
             statusEl.innerText = state;
+            if (state === APP_STATES.CONNECTED) {
+                rxUserEl.innerText = "";
+                rxUserEl.style.opacity = "0.4";
+            }
         }
 
         function forceReconnection() {
             if (isReconnecting) return;
             isReconnecting = true;
-            
             resetarConexoes();
             tentarReconectar();
         }
@@ -447,8 +592,6 @@
         function tentarReconectar() {
             clearTimeout(reconnectTimer);
             const delay = backoffDelays[currentBackoffIdx];
-            console.log(`Tentando reconectar em ${delay / 1000}s... (Fila: ${currentBackoffIdx + 1})`);
-            
             reconnectTimer = setTimeout(() => {
                 currentBackoffIdx = Math.min(currentBackoffIdx + 1, backoffDelays.length - 1);
                 connectWebSocket();
@@ -457,34 +600,28 @@
 
         function resetarConexoes() {
             pararHeartbeat();
-            
-            for (let id in peers) {
-                removerPeer(id);
-            }
+            for (let id in peers) removerPeer(id);
             peers = {};
+            users = {};
             activeSpeakers.clear();
             updatePeerCount(0);
-
             if (isTransmitting) {
                 isTransmitting = false;
                 if (localStream) localStream.getAudioTracks()[0].enabled = false;
                 pttBtn.classList.remove('active');
                 displayWrapper.classList.remove('status-tx');
             }
-
             displayWrapper.classList.remove('status-rx');
             pttBtn.classList.remove('receiving');
+            rxUserEl.innerText = "";
+            rxUserEl.style.opacity = "0.4";
             setAppState(APP_STATES.DISCONNECTED);
         }
 
         function safeSend(payload, activeId) {
             if (activeId !== connectionId) return;
             if (ws && ws.readyState === WebSocket.OPEN) {
-                try {
-                    ws.send(JSON.stringify(payload));
-                } catch (e) {
-                    console.error("Erro ao enviar via WebSocket:", e);
-                }
+                try { ws.send(JSON.stringify(payload)); } catch (e) {}
             }
         }
 
@@ -494,48 +631,34 @@
 
         async function createPeerConnection(peerId, isInitiator, activeId) {
             if (peers[peerId]) return;
-
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null, analyser: null, streamSource: null };
-
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
             pc.onicecandidate = (e) => {
                 if (e.candidate && activeId === connectionId) {
                     safeSend({ type: "ice_candidate", to: peerId, candidate: e.candidate }, activeId);
                 }
             };
-
             pc.onconnectionstatechange = () => {
                 if (activeId !== connectionId) return;
-                console.log(`Peer ${peerId} state: ${pc.connectionState}`);
-                if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
-                    removerPeer(peerId);
-                }
+                if (["failed", "disconnected", "closed"].includes(pc.connectionState)) removerPeer(peerId);
             };
-
             pc.ontrack = (e) => {
                 if (activeId !== connectionId) return;
                 if (!peers[peerId].audioEl) {
                     const audio = new Audio();
-                    audio.srcObject = e.streams[0]; 
-                    audio.autoplay = true; 
-                    audio.playsInline = true;
+                    audio.srcObject = e.streams[0]; audio.autoplay = true; audio.playsInline = true;
                     audioContainer.appendChild(audio);
-                    
                     peers[peerId].audioEl = audio;
                     const streamSource = audioCtx.createMediaStreamSource(e.streams[0]);
                     const peerAnalyser = audioCtx.createAnalyser();
                     peerAnalyser.fftSize = 256;
                     streamSource.connect(peerAnalyser);
-                    
                     peers[peerId].analyser = peerAnalyser;
                     peers[peerId].streamSource = streamSource;
-
-                    audio.play().catch(err => console.warn("Audio play blocked:", err));
+                    audio.play().catch(() => {});
                 }
             };
-
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 if (activeId !== connectionId) return;
@@ -557,10 +680,11 @@
                 }
                 delete peers[peerId];
                 activeSpeakers.delete(peerId);
-                
                 if (activeSpeakers.size === 0) {
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
+                    rxUserEl.innerText = "";
+                    rxUserEl.style.opacity = "0.4";
                     if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
                 }
             }
@@ -568,55 +692,45 @@
 
         function startPTT() {
             if (currentAppState !== APP_STATES.CONNECTED || !ws || ws.readyState !== WebSocket.OPEN) return;
-            
             const agora = Date.now();
             if (agora - lastPttAction < 100) return; 
             lastPttAction = agora;
-
             if (isTransmitting || activeSpeakers.size > 0) return;
-
             isTransmitting = true;
             localStream.getAudioTracks()[0].enabled = true;
-            
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             pttBtn.classList.add('active');
             statusEl.innerText = "Transmitindo";
             displayWrapper.classList.add('status-tx');
-            
             safeSend({ type: "start_tx" }, connectionId);
         }
 
         function stopPTT() {
             if (!isTransmitting) return;
-            
-            const agora = Date.now();
-            lastPttAction = agora;
-
+            lastPttAction = Date.now();
             isTransmitting = false;
             localStream.getAudioTracks()[0].enabled = false;
-            
             pttBtn.classList.remove('active');
             displayWrapper.classList.remove('status-tx');
-            
-            if (currentAppState === APP_STATES.CONNECTED) {
-                statusEl.innerText = APP_STATES.CONNECTED;
-            }
-
+            if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
             safeSend({ type: "stop_tx" }, connectionId);
         }
 
-        function handleRemoteTX(isStart, senderId) {
+        function handleRemoteTX(isStart, senderId, name) {
             if (isStart) {
                 activeSpeakers.add(senderId);
                 playTone(18500, 50); 
                 statusEl.innerText = "Recebendo";
+                rxUserEl.innerText = name || senderId;
+                rxUserEl.style.opacity = "1";
                 displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
             } else {
                 activeSpeakers.delete(senderId);
                 playTone(17500, 100); 
                 if (activeSpeakers.size === 0) {
+                    rxUserEl.innerText = "";
+                    rxUserEl.style.opacity = "0.4";
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
                     if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
@@ -675,18 +789,28 @@
             draw();
         }
 
-        pttBtn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            startPTT();
-        });
-        
-        pttBtn.addEventListener('pointerup', (e) => {
-            e.preventDefault();
-            stopPTT();
-        });
-        
-        pttBtn.addEventListener('pointerleave', stopPTT);
+        function renderUserList() {
+            userListEl.innerHTML = "";
+            Object.keys(users).forEach(id => {
+                const div = document.createElement("div");
+                div.className = "user-item";
+                div.innerText = users[id] + (id === myId ? " (Você)" : "");
+                userListEl.appendChild(div);
+            });
+        }
 
+        peerCountEl.addEventListener("click", () => {
+            renderUserList();
+            modal.style.display = "flex";
+        });
+
+        document.getElementById("close-user-modal").onclick = () => {
+            modal.style.display = "none";
+        };
+
+        pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); startPTT(); });
+        pttBtn.addEventListener('pointerup', (e) => { e.preventDefault(); stopPTT(); });
+        pttBtn.addEventListener('pointerleave', stopPTT);
         document.addEventListener('keydown', (e) => {
             if (e.key === 'F7' || e.key === 'F2') {
                 e.preventDefault();
@@ -694,11 +818,10 @@
                 if (e.key === 'F2' && !f2Pressed) { f2Pressed = true; startPTT(); }
             }
         });
-
         document.addEventListener('keyup', (e) => {
             if (e.key === 'F7') { f7Pressed = false; stopPTT(); }
             if (e.key === 'F2') { f2Pressed = false; stopPTT(); }
         });
     </script>
 </body>
-</html>
+</html>```
