@@ -145,6 +145,7 @@
         #peer-count { font-size: 13px; color: #3b82f6; letter-spacing: 1.2px; font-weight: 700; z-index: 2; opacity: 0.95; margin-top: 2px; }
 
         .status-tx #status { color: #ff5555; text-shadow: 0 0 15px var(--glow-red); }
+        .status-tx .ptt-label-sub { color: #ff3c3c; text-shadow: 0 0 8px var(--glow-red); }
         .status-rx #status { color: #55ff55; text-shadow: 0 0 15px var(--glow-green); }
 
         .vu-container { margin-top: 15px; width: 100%; z-index: 2; }
@@ -315,7 +316,7 @@
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null, analyser: null };
-            localStream?.getTracks().forEach(track => pc.addTrack(track, localStream));
+            
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -347,22 +348,38 @@
                 localStream = await navigator.mediaDevices.getUserMedia({
                     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
                 });
+
+                isTransmitting = true;
+                
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                
+                const source = audioCtx.createMediaStreamSource(localStream);
+                source.connect(txAnalyser);
+
+                Object.values(peers).forEach(peer => {
+                    localStream.getTracks().forEach(track => {
+                        peer.pc.addTrack(track, localStream);
+                    });
+                });
+
+                Object.entries(peers).forEach(async ([peerId, peer]) => {
+                    const offer = await peer.pc.createOffer();
+                    await peer.pc.setLocalDescription(offer);
+
+                    ws.send(JSON.stringify({
+                        type: "offer",
+                        to: peerId,
+                        offer: peer.pc.localDescription
+                    }));
+                });
+                
+                pttBtn.classList.add('active');
+                statusEl.innerText = "Transmitindo";
+                displayWrapper.classList.add('status-tx');
+                ws.send(JSON.stringify({ type: "start_tx" }));
             } catch (err) {
                 statusEl.innerText = "ERRO MIC";
-                return;
             }
-
-            isTransmitting = true;
-            
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            
-            const source = audioCtx.createMediaStreamSource(localStream);
-            source.connect(txAnalyser);
-            
-            pttBtn.classList.add('active');
-            statusEl.innerText = "Transmitindo";
-            displayWrapper.classList.add('status-tx');
-            ws.send(JSON.stringify({ type: "start_tx" }));
         }
 
         function stopPTT() {
