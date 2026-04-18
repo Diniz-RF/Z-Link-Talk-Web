@@ -285,7 +285,9 @@
                 switch (data.type) {
                     case "init":
                         myId = data.id;
-                        data.clients.forEach(clientId => { if (clientId !== myId) createPeerConnection(clientId, true); });
+                        for (const clientId of data.clients) {
+                            if (clientId !== myId) await createPeerConnection(clientId, true);
+                        }
                         updatePeerCount(data.clients.length);
                         break;
                     case "new_peer": updatePeerCount(Object.keys(peers).length + 2); break;
@@ -317,6 +319,15 @@
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null, analyser: null, sender: null };
             
+            try {
+                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const tempTrack = tempStream.getAudioTracks()[0];
+                peers[peerId].sender = pc.addTrack(tempTrack, tempStream);
+                tempTrack.enabled = false;
+            } catch (e) {
+                console.error("Erro ao criar sender inicial:", e);
+            }
+
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -332,6 +343,7 @@
                     audio.play().catch(err => console.log(err));
                 }
             };
+
             if (isInitiator) {
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
@@ -359,9 +371,7 @@
                 const track = localStream.getAudioTracks()[0];
 
                 Object.values(peers).forEach(peer => {
-                    if (!peer.sender) {
-                        peer.sender = peer.pc.addTrack(track, localStream);
-                    } else {
+                    if (peer.sender) {
                         peer.sender.replaceTrack(track);
                     }
                 });
