@@ -504,6 +504,22 @@
                             }
                         });
                         updatePeerCount(data.clients.length);
+                        
+                        if (data.activeTransmitters && data.activeTransmitters.length > 0) {
+                            data.activeTransmitters.forEach(id => {
+                                activeSpeakers.add(id);
+                            });
+
+                            const firstSpeaker = data.activeTransmitters[0];
+                            const name = users[firstSpeaker] || firstSpeaker;
+
+                            statusEl.innerText = "Recebendo";
+                            rxUserEl.innerText = name;
+                            rxUserEl.style.opacity = "1";
+
+                            displayWrapper.classList.add('status-rx');
+                            pttBtn.classList.add('receiving');
+                        }
                         break;
                     case "new_peer": 
                         users[data.id] = data.name || data.id;
@@ -823,4 +839,4 @@
         });
     </script>
 </body>
-</html>
+</html>```
