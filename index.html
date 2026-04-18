@@ -315,7 +315,7 @@
 
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
-            peers[peerId] = { pc, audioEl: null, analyser: null };
+            peers[peerId] = { pc, audioEl: null, analyser: null, sender: null };
             
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
@@ -356,21 +356,14 @@
                 const source = audioCtx.createMediaStreamSource(localStream);
                 source.connect(txAnalyser);
 
+                const track = localStream.getAudioTracks()[0];
+
                 Object.values(peers).forEach(peer => {
-                    localStream.getTracks().forEach(track => {
-                        peer.pc.addTrack(track, localStream);
-                    });
-                });
-
-                Object.entries(peers).forEach(async ([peerId, peer]) => {
-                    const offer = await peer.pc.createOffer();
-                    await peer.pc.setLocalDescription(offer);
-
-                    ws.send(JSON.stringify({
-                        type: "offer",
-                        to: peerId,
-                        offer: peer.pc.localDescription
-                    }));
+                    if (!peer.sender) {
+                        peer.sender = peer.pc.addTrack(track, localStream);
+                    } else {
+                        peer.sender.replaceTrack(track);
+                    }
                 });
                 
                 pttBtn.classList.add('active');
