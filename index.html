@@ -374,6 +374,17 @@
                         peer.sender.replaceTrack(track);
                     }
                 });
+
+                await Promise.all(Object.entries(peers).map(async ([peerId, peer]) => {
+                    const offer = await peer.pc.createOffer();
+                    await peer.pc.setLocalDescription(offer);
+
+                    ws.send(JSON.stringify({
+                        type: "offer",
+                        to: peerId,
+                        offer: peer.pc.localDescription
+                    }));
+                }));
                 
                 pttBtn.classList.add('active');
                 statusEl.innerText = "Transmitindo";
@@ -443,7 +454,7 @@
                             peers[id].analyser.getByteFrequencyData(data);
                             let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
                             let rawLevel = (sum / 60) * 1.5;
-                            let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255) , 0.8) * 255;
+                            let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
                             if (currentAvg > valorAtual) valorAtual = currentAvg;
                         }
                     });
