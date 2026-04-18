@@ -286,11 +286,18 @@
                     case "init":
                         myId = data.id;
                         for (const clientId of data.clients) {
-                            if (clientId !== myId) await createPeerConnection(clientId, true);
+                            if (clientId !== myId) {
+                                await createPeerConnection(clientId, myId < clientId);
+                            }
                         }
                         updatePeerCount(data.clients.length);
                         break;
-                    case "new_peer": updatePeerCount(Object.keys(peers).length + 2); break;
+                    case "new_peer": 
+                        if (data.id !== myId) {
+                            await createPeerConnection(data.id, myId < data.id);
+                        }
+                        updatePeerCount(Object.keys(peers).length + 2); 
+                        break;
                     case "offer":
                         if (!peers[senderId]) await createPeerConnection(senderId, false);
                         await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
