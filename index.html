@@ -406,6 +406,21 @@
     }
 
     #audio-container { display: none; }
+
+    .knob.on {
+        box-shadow: 0 0 10px #00ff88, 0 0 25px rgba(0,255,120,0.7);
+    }
+
+    .knob.off {
+        box-shadow: 0 0 8px #ff0000, 0 0 20px rgba(255,0,0,0.6);
+        animation: blinkRed 1s infinite;
+    }
+
+    @keyframes blinkRed {
+        0% { opacity: 1; }
+        50% { opacity: 0.4; }
+        100% { opacity: 1; }
+    }
 </style>
 </head>
 <body>
@@ -563,6 +578,7 @@
 
     window.addEventListener('load', async () => {
         initIdentity();
+        knob.classList.add("on");
         try {
             await initAudio();
             startVUMeter();
@@ -1055,8 +1071,12 @@
     function togglePower() {
         if (isAppOn) {
             desligarApp();
+            knob.classList.remove("on");
+            knob.classList.add("off");
         } else {
             ligarApp();
+            knob.classList.remove("off");
+            knob.classList.add("on");
         }
     }
 
@@ -1096,11 +1116,18 @@
         pttBtn.classList.remove('active', 'receiving');
 
         statusEl.innerText = "DESLIGADO";
+        
+        knob.classList.remove("on");
+        knob.classList.add("off");
     }
 
     async function ligarApp() {
         isAppOn = true;
         statusEl.innerText = "Conectando...";
+        
+        knob.classList.remove("off");
+        knob.classList.add("on");
+        
         try {
             await initAudio();
             connectWebSocket();
@@ -1108,6 +1135,8 @@
             console.error("Erro ao religar o app:", err);
             statusEl.innerText = "ERRO AO RELIGAR";
             isAppOn = false;
+            knob.classList.remove("on");
+            knob.classList.add("off");
         }
     }
 
