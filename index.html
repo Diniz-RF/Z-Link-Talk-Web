@@ -324,17 +324,9 @@
 
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
-            peers[peerId] = { pc, audioEl: null, analyser: null, sender: null };
+            const transceiver = pc.addTransceiver("audio", { direction: "sendrecv" });
+            peers[peerId] = { pc, audioEl: null, analyser: null, sender: transceiver.sender };
             
-            try {
-                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const tempTrack = tempStream.getAudioTracks()[0];
-                peers[peerId].sender = pc.addTrack(tempTrack, tempStream);
-                tempTrack.enabled = false;
-            } catch (e) {
-                console.error("Erro ao criar sender inicial:", e);
-            }
-
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -451,7 +443,7 @@
                             peers[id].analyser.getByteFrequencyData(data);
                             let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
                             let rawLevel = (sum / 60) * 1.5;
-                            let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
+                            let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255) , 0.8) * 255;
                             if (currentAvg > valorAtual) valorAtual = currentAvg;
                         }
                     });
