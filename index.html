@@ -167,6 +167,7 @@
         border: 1px solid #000; 
         border-top: 3px solid var(--glow-red); 
         z-index: 2;
+        cursor: pointer;
     }
 
     .knob::before {
@@ -478,6 +479,7 @@
     const nameInput = document.getElementById('user-name-input');
     const saveBtn = document.getElementById('save-identity-btn');
     const rogerAudio = document.getElementById("roger-audio");
+    const knob = document.querySelector('.knob');
     
     const modal = document.getElementById("user-modal");
     const userListEl = document.getElementById("user-list");
@@ -485,6 +487,7 @@
     let ws = null;
     let connectionId = 0; 
     let currentAppState = APP_STATES.DISCONNECTED;
+    let isAppOn = true;
     
     let myId = null, localStream, audioCtx, txAnalyser;
     let peers = {}; 
@@ -560,6 +563,8 @@
     });
 
     function connectWebSocket() {
+        if (!isAppOn) return;
+
         if (ws) {
             ws.onclose = null;
             ws.onerror = null;
@@ -738,7 +743,7 @@
     }
 
     function forceReconnection() {
-        if (isReconnecting) return;
+        if (isReconnecting || !isAppOn) return;
 
         isReconnecting = true;
 
@@ -754,6 +759,7 @@
     }
 
     function tentarReconectar() {
+        if (!isAppOn) return;
         clearTimeout(reconnectTimer);
 
         const delay = backoffDelays[currentBackoffIdx];
@@ -869,6 +875,7 @@
     }
 
     function startPTT() {
+        if (!isAppOn) return;
         if (currentAppState !== APP_STATES.CONNECTED || !ws || ws.readyState !== WebSocket.OPEN) return;
         const agora = Date.now();
         if (agora - lastPttAction < 100) return; 
@@ -1028,6 +1035,51 @@
                 userListEl.appendChild(div);
             });
     }
+
+    function togglePower() {
+        if (isAppOn) {
+            desligarApp();
+        } else {
+            ligarApp();
+        }
+    }
+
+    function desligarApp() {
+        isAppOn = false;
+
+        if (ws) {
+            try { ws.close(); } catch {}
+            ws = null;
+        }
+
+        clearTimeout(reconnectTimer);
+        pararHeartbeat();
+
+        for (let id in peers) removerPeer(id);
+        peers = {};
+        users = {};
+        activeSpeakers.clear();
+
+        if (isTransmitting && localStream) {
+            localStream.getAudioTracks()[0].enabled = false;
+            isTransmitting = false;
+        }
+
+        updatePeerCount();
+        rxUserEl.innerText = "";
+        displayWrapper.classList.remove('status-rx', 'status-tx');
+        pttBtn.classList.remove('active', 'receiving');
+
+        statusEl.innerText = "DESLIGADO";
+    }
+
+    function ligarApp() {
+        isAppOn = true;
+        statusEl.innerText = "Conectando...";
+        connectWebSocket();
+    }
+
+    knob.addEventListener('click', togglePower);
 
     peerCountEl.addEventListener("click", () => {
         renderUserList();
