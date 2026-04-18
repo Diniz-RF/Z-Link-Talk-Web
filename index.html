@@ -97,7 +97,7 @@
         .identity-bar {
             display: flex;
             gap: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 6px;
             width: 100%;
             z-index: 10;
         }
@@ -107,8 +107,8 @@
             border: 1px solid #333;
             border-radius: 6px;
             color: var(--glow-cyan);
-            padding: 6px 10px;
-            font-size: 13px;
+            padding: 4px 8px;
+            font-size: 12px;
             outline: none;
         }
         #user-name-input:focus {
@@ -120,8 +120,8 @@
             border: 1px solid #4a5159;
             border-radius: 6px;
             color: #fff;
-            padding: 6px 10px;
-            font-size: 11px;
+            padding: 4px 8px;
+            font-size: 10px;
             cursor: pointer;
             font-weight: bold;
         }
@@ -198,19 +198,21 @@
             background: var(--display-bg); 
             border: 6px solid #1a1a1a; 
             border-radius: 18px;
-            padding: 15px 12px; 
+            padding: 10px 8px; 
             box-shadow:
                 inset 0 0 30px rgba(0,0,0,0.9),
                 0 0 15px rgba(0, 242, 255, 0.05);
             margin-top: 10px; 
-            margin-bottom: 12px; 
+            margin-bottom: 6px; 
             position: relative;
             display: flex; 
             flex-direction: column; 
             align-items: center; 
             text-align: center;
-            flex: 1;
-            min-height: 220px;
+            flex: 2;
+            min-height: 260px;
+            justify-content: flex-start;
+            gap: 10px;
         }
 
         .display-area::before {
@@ -234,36 +236,22 @@
         #status { font-size: 18px; margin: 5px 0; color: #b0b8c4; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; }
         
         .rx-user {
-            height: 22px;
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            color: #4ade80;
-            text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
-            margin-top: 8px;
-            margin-bottom: 6px;
+            min-height: 40px;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #b6f3ff;
+            text-shadow: 0 0 12px rgba(0, 242, 255, 0.45);
+            margin-top: 12px;
+            margin-bottom: 12px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            opacity: 0.9;
+            opacity: 1;
             width: 100%;
+            text-align: center;
             z-index: 2;
             transform-origin: center;
-        }
-
-        #network-status {
-            font-size: 10px;
-            opacity: 0.7;
-            margin-top: 4px;
-            font-weight: bold;
-            z-index: 2;
-        }
-
-        #connection-quality {
-            font-size: 11px;
-            margin-top: 4px;
-            font-weight: bold;
-            z-index: 2;
         }
 
         #peer-count { 
@@ -297,7 +285,7 @@
             to { box-shadow: 0 0 25px rgba(255,0,0,0.6); }
         }
 
-        .vu-container { margin-top: auto; width: 100%; z-index: 2; padding-top: 15px; }
+        .vu-container { margin-top: auto; width: 100%; z-index: 2; padding-top: 8px; }
         .vu-scale { display: flex; justify-content: space-between; font-size: 9px; color: #444; margin-bottom: 6px; font-weight: bold; }
         canvas#vu-meter { width: 100%; height: 14px; background: #000; border-radius: 4px; border: 1px solid #1a1a1a; }
 
@@ -305,9 +293,9 @@
             display: flex; 
             align-items: center; 
             justify-content: center; 
-            padding: 10px 0;
-            margin-top: 10px;
-            margin-bottom: 10px;
+            padding: 5px 0;
+            margin-top: 5px;
+            margin-bottom: 5px;
         }
         
         #ptt-btn {
@@ -343,7 +331,7 @@
         .ptt-label-sub { font-size: 10px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
 
         .speaker-grill {
-            height: 80px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
+            height: 60px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
             background-size: 7px 7px; background-color: #1a1d23; border-radius: 25px; border: 2px solid #111;
             margin-bottom: 10px; box-shadow: inset 0 8px 15px rgba(0,0,0,0.7);
         }
@@ -438,8 +426,6 @@
                 
                 <div id="status">INICIANDO...</div>
                 <div id="rx-user" class="rx-user"></div>
-                <div id="network-status">ONLINE</div>
-                <div id="connection-quality">LATÊNCIA: --ms</div>
                 <div id="peer-count">CONECTADOS AGORA: 0</div>
                 
                 <div class="vu-container">
@@ -486,11 +472,9 @@
         const canvasVU = document.getElementById('vu-meter');
         const ctxVU = canvasVU.getContext('2d');
         const peerCountEl = document.getElementById('peer-count');
-        const qualityEl = document.getElementById('connection-quality');
         const audioContainer = document.getElementById('audio-container');
         const nameInput = document.getElementById('user-name-input');
         const saveBtn = document.getElementById('save-identity-btn');
-        const netEl = document.getElementById("network-status");
         
         const modal = document.getElementById("user-modal");
         const userListEl = document.getElementById("user-list");
@@ -522,14 +506,6 @@
 
         let userId;
         let userName;
-        
-        if (navigator.onLine) {
-            netEl.innerText = "ONLINE";
-            netEl.style.color = "#4ade80";
-        } else {
-            netEl.innerText = "OFFLINE";
-            netEl.style.color = "#ff5555";
-        }
 
         function initIdentity() {
             userId = localStorage.getItem("zlink_user_id");
@@ -578,18 +554,6 @@
                 console.error("Microfone não detectado:", err);
                 statusEl.innerText = "ERRO MIC";
             }
-        });
-
-        window.addEventListener("offline", () => {
-            setAppState(APP_STATES.DISCONNECTED);
-            netEl.innerText = "OFFLINE";
-            netEl.style.color = "#ff5555";
-        });
-
-        window.addEventListener("online", () => {
-            forceReconnection();
-            netEl.innerText = "ONLINE";
-            netEl.style.color = "#4ade80";
         });
 
         function connectWebSocket() {
@@ -644,7 +608,6 @@
                 if (data.type === "pong") { 
                     clearTimeout(pongTimeout); 
                     latency = Date.now() - lastPingTime;
-                    updateConnectionQuality(latency);
                     return; 
                 }
 
@@ -668,10 +631,11 @@
                             });
 
                             const firstSpeaker = data.activeTransmitters[0];
-                            const name = users[firstSpeaker] || firstSpeaker;
+                            const name = (data.clients.find(c => c.id === firstSpeaker)?.name) || users[firstSpeaker] || firstSpeaker;
 
                             statusEl.innerText = "Recebendo";
                             rxUserEl.innerText = name;
+                            rxUserEl.dataset.senderId = firstSpeaker;
                             rxUserEl.style.opacity = "1";
                             rxUserEl.style.transform = "scale(1.05)";
 
@@ -685,6 +649,11 @@
                         break;
                     case "user_update":
                         users[data.id] = data.name || data.id;
+
+                        if (rxUserEl.dataset.senderId === data.id) {
+                            rxUserEl.innerText = data.name || data.id;
+                        }
+
                         if (activeSpeakers.size > 0) renderUserList();
                         break;
                     case "offer":
@@ -729,18 +698,23 @@
 
         function iniciarHeartbeat(activeId) {
             pararHeartbeat();
+
             heartbeatInterval = setInterval(() => {
                 if (activeId !== connectionId || !ws || ws.readyState !== WebSocket.OPEN) {
                     pararHeartbeat();
                     return;
                 }
+
                 lastPingTime = Date.now();
+
                 safeSend({ type: "ping" }, activeId);
+
                 clearTimeout(pongTimeout);
                 pongTimeout = setTimeout(() => {
                     if (activeId === connectionId) forceReconnection();
-                }, 10000); 
-            }, 5000); 
+                }, 10000);
+
+            }, 5000);
         }
 
         function pararHeartbeat() {
@@ -753,6 +727,7 @@
             statusEl.innerText = state;
             if (state === APP_STATES.CONNECTED) {
                 rxUserEl.innerText = "";
+                rxUserEl.dataset.senderId = "";
                 rxUserEl.style.opacity = "0.4";
                 rxUserEl.style.transform = "scale(1)";
             }
@@ -808,6 +783,7 @@
             displayWrapper.classList.remove('status-rx');
             pttBtn.classList.remove('receiving');
             rxUserEl.innerText = "";
+            rxUserEl.dataset.senderId = "";
             rxUserEl.style.opacity = "0.4";
             rxUserEl.style.transform = "scale(1)";
             setAppState(APP_STATES.DISCONNECTED);
@@ -819,22 +795,6 @@
             if (ws && ws.readyState === WebSocket.OPEN) {
                 try { ws.send(JSON.stringify(payload)); } catch (e) {}
             }
-        }
-        
-        function updateConnectionQuality(lat) {
-            let quality = "EXCELENTE";
-            let color = "#4ade80";
-
-            if (lat > 200) {
-                quality = "RUIM";
-                color = "#ff5555";
-            } else if (lat > 100) {
-                quality = "MÉDIA";
-                color = "#facc15";
-            }
-
-            qualityEl.innerText = `LATÊNCIA: ${lat} ms | ${quality}`;
-            qualityEl.style.color = color;
         }
 
         function updatePeerCount() { 
@@ -896,6 +856,7 @@
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
                     rxUserEl.innerText = "";
+                    rxUserEl.dataset.senderId = "";
                     rxUserEl.style.opacity = "0.4";
                     rxUserEl.style.transform = "scale(1)";
                     if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
@@ -932,25 +893,40 @@
         function handleRemoteTX(isStart, senderId, name) {
             if (isStart) {
                 activeSpeakers.add(senderId);
-                playTone(18500, 50); 
+
+                playTone(18500, 50);
+
                 statusEl.innerText = "Recebendo";
-                rxUserEl.innerText = name || users[senderId] || senderId;
+
+                const displayName = name || users[senderId] || "Usuário";
+
+                rxUserEl.innerText = displayName;
+                rxUserEl.dataset.senderId = senderId; 
+
                 rxUserEl.style.opacity = "1";
                 rxUserEl.style.transform = "scale(1.05)";
+
                 displayWrapper.classList.add('status-rx');
                 pttBtn.classList.add('receiving');
             } else {
                 activeSpeakers.delete(senderId);
-                playTone(17500, 100); 
+
+                playTone(17500, 100);
+
                 if (activeSpeakers.size === 0) {
                     rxUserEl.innerText = "";
+                    rxUserEl.dataset.senderId = "";
                     rxUserEl.style.opacity = "0.4";
                     rxUserEl.style.transform = "scale(1)";
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
-                    if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
+
+                    if (currentAppState === APP_STATES.CONNECTED) {
+                        statusEl.innerText = APP_STATES.CONNECTED;
+                    }
                 }
             }
+
             if (modal.style.display === "flex") renderUserList();
         }
 
