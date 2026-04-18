@@ -263,18 +263,10 @@
 
         window.addEventListener('load', async () => {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({
-                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
-                });
-                localStream.getAudioTracks()[0].enabled = false;
-                
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 audioCtx = new AudioContext();
                 txAnalyser = audioCtx.createAnalyser();
                 txAnalyser.fftSize = 256;
-                
-                const source = audioCtx.createMediaStreamSource(localStream);
-                source.connect(txAnalyser);
                 
                 startVUMeter();
                 connectWebSocket();
@@ -323,7 +315,7 @@
         async function createPeerConnection(peerId, isInitiator) {
             const pc = new RTCPeerConnection(rtcConfig);
             peers[peerId] = { pc, audioEl: null, analyser: null };
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+            localStream?.getTracks().forEach(track => pc.addTrack(track, localStream));
             pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
             pc.ontrack = (e) => {
                 if (!peers[peerId].audioEl) {
@@ -348,11 +340,25 @@
 
         function updatePeerCount(count) { peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; }
 
-        function startPTT() {
+        async function startPTT() {
             if (isTransmitting || activeSpeakers.size > 0) return;
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 }
+                });
+            } catch (err) {
+                statusEl.innerText = "ERRO MIC";
+                return;
+            }
+
             isTransmitting = true;
-            localStream.getAudioTracks()[0].enabled = true;
+            
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const source = audioCtx.createMediaStreamSource(localStream);
+            source.connect(txAnalyser);
+            
             pttBtn.classList.add('active');
             statusEl.innerText = "Transmitindo";
             displayWrapper.classList.add('status-tx');
@@ -362,7 +368,12 @@
         function stopPTT() {
             if (!isTransmitting) return;
             isTransmitting = false;
-            localStream.getAudioTracks()[0].enabled = false;
+            
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            
             pttBtn.classList.remove('active');
             statusEl.innerText = "Canal Livre";
             displayWrapper.classList.remove('status-tx');
@@ -439,6 +450,12 @@
         document.addEventListener('keyup', (e) => {
             if (e.key === 'F7') { e.preventDefault(); f7Pressed = false; stopPTT(); }
             if (e.key === 'F2') { e.preventDefault(); f2Pressed = false; stopPTT(); }
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden) {
+                stopPTT();
+            }
         });
     </script>
 </body>
