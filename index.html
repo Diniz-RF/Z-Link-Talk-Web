@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Z-Link Talk | Diniz-RF</title>
+    <title>Z-Link Talk | Diniz-RF (PRO)</title>
     <style>
         :root {
             --body-bg: radial-gradient(circle, #1e2126 0%, #0d0f12 100%);
@@ -55,7 +55,6 @@
             user-select: none;
         }
 
-        /* 📡 ANTENA - ALINHAMENTO COM A LINHA DO TOPO (VERMELHA) */
         .antenna {
             position: absolute; 
             top: -110px; 
@@ -71,19 +70,18 @@
         .antenna::after {
             content: "";
             position: absolute;
-            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
+            bottom: -2px; 
             left: 50%;
             transform: translateX(-50%);
             width: 52px; 
             height: 14px;
-            background: #111; /* Cor sólida para destacar a base conforme imagem */
+            background: #111; 
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
             z-index: -1;
         }
 
-        /* 🔘 KNOB - ALINHAMENTO COM A LINHA DO TOPO (VERMELHA) */
         .knob {
             position: absolute; 
             top: -42px; 
@@ -101,12 +99,12 @@
         .knob::before {
             content: "";
             position: absolute;
-            bottom: -2px; /* ALINHADO PARA TOCAR A LINHA SUPERIOR DO RÁDIO */
+            bottom: -2px; 
             left: 50%;
             transform: translateX(-50%);
             width: 66px; 
             height: 14px;
-            background: #111; /* Cor sólida igual à base da antena */
+            background: #111; 
             border: 1px solid rgba(0,0,0,0.8);
             border-bottom: none;
             border-radius: 8px 8px 0 0;
@@ -207,7 +205,7 @@
             <div class="display-area" id="display-wrapper">
                 <h1 id="brand">Z-Link Talk</h1>
                 <div class="dev-credit">Desenvolvido por Diniz-RF</div>
-                <div id="status">Conectando...</div>
+                <div id="status">INICIANDO...</div>
                 <div id="peer-count">CONECTADOS AGORA: 0</div>
                 <div class="vu-container">
                     <div class="vu-scale"><span>LOW</span><span>MID</span><span>HIGH</span></div>
@@ -229,9 +227,18 @@
     <div id="audio-container"></div>
 
     <script>
+        /**
+         * Z-LINK TALK | RADIO PTT PROFESSIONAL CORE
+         * CONFIGURAÇÕES E ESTADOS
+         */
         const WS_URL = "wss://z-link-talk.onrender.com";
-        const AUDIO_BITRATE = 32;
         const rtcConfig = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        const APP_STATES = {
+            CONNECTING: "Conectando...",
+            CONNECTED: "Canal Livre",
+            RECONNECTING: "Reconectando...",
+            DISCONNECTED: "Desconectado"
+        };
 
         const pttBtn = document.getElementById('ptt-btn');
         const statusEl = document.getElementById('status');
@@ -241,25 +248,26 @@
         const peerCountEl = document.getElementById('peer-count');
         const audioContainer = document.getElementById('audio-container');
 
-        let ws, myId = null, localStream, audioCtx, txAnalyser;
+        let ws = null;
+        let connectionId = 0; 
+        let currentAppState = APP_STATES.DISCONNECTED;
+        
+        let myId = null, localStream, audioCtx, txAnalyser;
         let peers = {}; 
         let isTransmitting = false;
         let activeSpeakers = new Set();
+        let lastPttAction = 0; 
+
+        let heartbeatInterval = null;
+        let pongTimeout = null;
+        let reconnectTimer = null;
+        let connInitialTimeout = null;
+        let backoffDelays = [3000, 5000, 7000, 10000];
+        let currentBackoffIdx = 0;
+        let isReconnecting = false;
+
         let f7Pressed = false;
         let f2Pressed = false;
-
-        function playTone(freq, duration) {
-            if (!audioCtx) return;
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.frequency.value = freq;
-            gain.gain.value = 0.15;
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + (duration / 1000));
-        }
 
         window.addEventListener('load', async () => {
             try {
@@ -279,98 +287,324 @@
                 startVUMeter();
                 connectWebSocket();
             } catch (err) {
+                console.error("Microfone não detectado:", err);
                 statusEl.innerText = "ERRO MIC";
             }
         });
 
         function connectWebSocket() {
+            if (ws) {
+                console.warn("Limpando instância anterior de WebSocket...");
+                ws.onclose = null;
+                ws.onerror = null;
+                ws.onmessage = null;
+                ws.onopen = null;
+                if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                    ws.close();
+                }
+                ws = null;
+            }
+
+            connectionId++;
+            const activeId = connectionId;
+            
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+            clearTimeout(connInitialTimeout);
+            
+            setAppState(currentBackoffIdx > 0 ? APP_STATES.RECONNECTING : APP_STATES.CONNECTING);
+            console.log(`[ID:${activeId}] Iniciando tentativa de conexão...`);
+
             ws = new WebSocket(WS_URL);
-            ws.onopen = () => { statusEl.innerText = "Canal Livre"; };
+
+            connInitialTimeout = setTimeout(() => {
+                if (activeId === connectionId && (!ws || ws.readyState !== WebSocket.OPEN)) {
+                    console.warn(`[ID:${activeId}] Timeout de conexão inicial atingido.`);
+                    forceReconnection();
+                }
+            }, 5000);
+
+            ws.onopen = () => {
+                if (activeId !== connectionId) return;
+                console.log(`[ID:${activeId}] Conectado com sucesso.`);
+                
+                isReconnecting = false;
+                clearTimeout(connInitialTimeout);
+                currentBackoffIdx = 0;
+                setAppState(APP_STATES.CONNECTED);
+                iniciarHeartbeat(activeId);
+            };
+
             ws.onmessage = async (event) => {
+                if (activeId !== connectionId) return;
+                
                 const data = JSON.parse(event.data);
+                
+                if (data.type === "pong") {
+                    clearTimeout(pongTimeout);
+                    return;
+                }
+
                 const senderId = data.from || data.id;
+
                 switch (data.type) {
                     case "init":
                         myId = data.id;
-                        data.clients.forEach(clientId => { if (clientId !== myId) createPeerConnection(clientId, true); });
+                        data.clients.forEach(clientId => { 
+                            if (clientId !== myId) createPeerConnection(clientId, true, activeId); 
+                        });
                         updatePeerCount(data.clients.length);
                         break;
-                    case "new_peer": updatePeerCount(Object.keys(peers).length + 2); break;
+
+                    case "new_peer": 
+                        updatePeerCount(Object.keys(peers).length + 2); 
+                        break;
+
                     case "offer":
-                        if (!peers[senderId]) await createPeerConnection(senderId, false);
+                        if (!peers[senderId]) await createPeerConnection(senderId, false, activeId);
+                        if (activeId !== connectionId) return;
                         await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answer = await peers[senderId].pc.createAnswer();
                         await peers[senderId].pc.setLocalDescription(answer);
-                        ws.send(JSON.stringify({ type: "answer", to: senderId, answer: peers[senderId].pc.localDescription }));
+                        safeSend({ type: "answer", to: senderId, answer: peers[senderId].pc.localDescription }, activeId);
                         break;
-                    case "answer": if (peers[senderId]) await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer)); break;
-                    case "ice_candidate": if (peers[senderId]) await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate)); break;
-                    case "start_tx": handleRemoteTX(true, senderId); break;
-                    case "stop_tx": handleRemoteTX(false, senderId); break;
+
+                    case "answer": 
+                        if (peers[senderId]) await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.answer)); 
+                        break;
+
+                    case "ice_candidate": 
+                        if (peers[senderId]) await peers[senderId].pc.addIceCandidate(new RTCIceCandidate(data.candidate)); 
+                        break;
+
+                    case "start_tx": 
+                        handleRemoteTX(true, senderId); 
+                        break;
+
+                    case "stop_tx": 
+                        handleRemoteTX(false, senderId); 
+                        break;
+
                     case "peer_left":
-                        if (peers[data.id]) { 
-                            if (peers[data.id].audioEl) peers[data.id].audioEl.remove(); 
-                            peers[data.id].pc.close(); 
-                            delete peers[data.id]; 
-                            activeSpeakers.delete(data.id);
-                        }
+                        removerPeer(data.id);
                         updatePeerCount(Object.keys(peers).length + 1);
                         break;
                 }
             };
+
+            ws.onclose = () => {
+                if (activeId !== connectionId) return;
+                console.warn(`[ID:${activeId}] WebSocket fechado.`);
+                ws = null;
+                forceReconnection();
+            };
+
+            ws.onerror = (err) => {
+                if (activeId !== connectionId) return;
+                console.error(`[ID:${activeId}] Erro no WebSocket.`);
+                if (ws && ws.readyState !== WebSocket.CLOSED) ws.close();
+            };
         }
 
-        async function createPeerConnection(peerId, isInitiator) {
+        function iniciarHeartbeat(activeId) {
+            pararHeartbeat();
+            heartbeatInterval = setInterval(() => {
+                if (activeId !== connectionId || !ws || ws.readyState !== WebSocket.OPEN) {
+                    pararHeartbeat();
+                    return;
+                }
+
+                safeSend({ type: "ping" }, activeId);
+
+                clearTimeout(pongTimeout);
+                pongTimeout = setTimeout(() => {
+                    if (activeId === connectionId) {
+                        console.error(`[ID:${activeId}] Heartbeat falhou (Morte Cerebral).`);
+                        forceReconnection();
+                    }
+                }, 10000); 
+            }, 5000); 
+        }
+
+        function pararHeartbeat() {
+            clearInterval(heartbeatInterval);
+            clearTimeout(pongTimeout);
+        }
+
+        function setAppState(state) {
+            currentAppState = state;
+            statusEl.innerText = state;
+        }
+
+        function forceReconnection() {
+            if (isReconnecting) return;
+            isReconnecting = true;
+            
+            resetarConexoes();
+            tentarReconectar();
+        }
+
+        function tentarReconectar() {
+            clearTimeout(reconnectTimer);
+            const delay = backoffDelays[currentBackoffIdx];
+            console.log(`Tentando reconectar em ${delay / 1000}s... (Fila: ${currentBackoffIdx + 1})`);
+            
+            reconnectTimer = setTimeout(() => {
+                currentBackoffIdx = Math.min(currentBackoffIdx + 1, backoffDelays.length - 1);
+                connectWebSocket();
+            }, delay);
+        }
+
+        function resetarConexoes() {
+            pararHeartbeat();
+            
+            for (let id in peers) {
+                removerPeer(id);
+            }
+            peers = {};
+            activeSpeakers.clear();
+            updatePeerCount(0);
+
+            if (isTransmitting) {
+                isTransmitting = false;
+                if (localStream) localStream.getAudioTracks()[0].enabled = false;
+                pttBtn.classList.remove('active');
+                displayWrapper.classList.remove('status-tx');
+            }
+
+            displayWrapper.classList.remove('status-rx');
+            pttBtn.classList.remove('receiving');
+            setAppState(APP_STATES.DISCONNECTED);
+        }
+
+        function safeSend(payload, activeId) {
+            if (activeId !== connectionId) return;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                try {
+                    ws.send(JSON.stringify(payload));
+                } catch (e) {
+                    console.error("Erro ao enviar via WebSocket:", e);
+                }
+            }
+        }
+
+        function updatePeerCount(count) { 
+            peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; 
+        }
+
+        async function createPeerConnection(peerId, isInitiator, activeId) {
+            if (peers[peerId]) return;
+
             const pc = new RTCPeerConnection(rtcConfig);
-            peers[peerId] = { pc, audioEl: null, analyser: null };
+            peers[peerId] = { pc, audioEl: null, analyser: null, streamSource: null };
+
             localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-            pc.onicecandidate = (e) => { if (e.candidate) ws.send(JSON.stringify({ type: "ice_candidate", to: peerId, candidate: e.candidate })); };
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate && activeId === connectionId) {
+                    safeSend({ type: "ice_candidate", to: peerId, candidate: e.candidate }, activeId);
+                }
+            };
+
+            pc.onconnectionstatechange = () => {
+                if (activeId !== connectionId) return;
+                console.log(`Peer ${peerId} state: ${pc.connectionState}`);
+                if (["failed", "disconnected", "closed"].includes(pc.connectionState)) {
+                    removerPeer(peerId);
+                }
+            };
+
             pc.ontrack = (e) => {
+                if (activeId !== connectionId) return;
                 if (!peers[peerId].audioEl) {
                     const audio = new Audio();
-                    audio.srcObject = e.streams[0]; audio.autoplay = true; audio.playsInline = true;
+                    audio.srcObject = e.streams[0]; 
+                    audio.autoplay = true; 
+                    audio.playsInline = true;
                     audioContainer.appendChild(audio);
+                    
                     peers[peerId].audioEl = audio;
                     const streamSource = audioCtx.createMediaStreamSource(e.streams[0]);
                     const peerAnalyser = audioCtx.createAnalyser();
                     peerAnalyser.fftSize = 256;
                     streamSource.connect(peerAnalyser);
+                    
                     peers[peerId].analyser = peerAnalyser;
-                    audio.play().catch(err => console.log(err));
+                    peers[peerId].streamSource = streamSource;
+
+                    audio.play().catch(err => console.warn("Audio play blocked:", err));
                 }
             };
+
             if (isInitiator) {
                 const offer = await pc.createOffer();
+                if (activeId !== connectionId) return;
                 await pc.setLocalDescription(offer);
-                ws.send(JSON.stringify({ type: "offer", to: peerId, offer: pc.localDescription }));
+                safeSend({ type: "offer", to: peerId, offer: pc.localDescription }, activeId);
             }
         }
 
-        function updatePeerCount(count) { peerCountEl.innerText = `CONECTADOS AGORA: ${count}`; }
+        function removerPeer(peerId) {
+            if (peers[peerId]) {
+                if (peers[peerId].audioEl) peers[peerId].audioEl.remove();
+                if (peers[peerId].streamSource) peers[peerId].streamSource.disconnect();
+                if (peers[peerId].analyser) peers[peerId].analyser.disconnect();
+                if (peers[peerId].pc) {
+                    peers[peerId].pc.onicecandidate = null;
+                    peers[peerId].pc.ontrack = null;
+                    peers[peerId].pc.onconnectionstatechange = null;
+                    peers[peerId].pc.close();
+                }
+                delete peers[peerId];
+                activeSpeakers.delete(peerId);
+                
+                if (activeSpeakers.size === 0) {
+                    displayWrapper.classList.remove('status-rx');
+                    pttBtn.classList.remove('receiving');
+                    if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
+                }
+            }
+        }
 
         function startPTT() {
+            if (currentAppState !== APP_STATES.CONNECTED || !ws || ws.readyState !== WebSocket.OPEN) return;
+            
+            const agora = Date.now();
+            if (agora - lastPttAction < 100) return; 
+            lastPttAction = agora;
+
             if (isTransmitting || activeSpeakers.size > 0) return;
+
             isTransmitting = true;
             localStream.getAudioTracks()[0].enabled = true;
+            
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             pttBtn.classList.add('active');
             statusEl.innerText = "Transmitindo";
             displayWrapper.classList.add('status-tx');
-            ws.send(JSON.stringify({ type: "start_tx" }));
+            
+            safeSend({ type: "start_tx" }, connectionId);
         }
 
         function stopPTT() {
             if (!isTransmitting) return;
+            
+            const agora = Date.now();
+            lastPttAction = agora;
+
             isTransmitting = false;
             localStream.getAudioTracks()[0].enabled = false;
+            
             pttBtn.classList.remove('active');
-            statusEl.innerText = "Canal Livre";
             displayWrapper.classList.remove('status-tx');
-            ws.send(JSON.stringify({ type: "stop_tx" }));
-        }
+            
+            if (currentAppState === APP_STATES.CONNECTED) {
+                statusEl.innerText = APP_STATES.CONNECTED;
+            }
 
-        pttBtn.addEventListener('pointerdown', startPTT);
-        pttBtn.addEventListener('pointerup', stopPTT);
+            safeSend({ type: "stop_tx" }, connectionId);
+        }
 
         function handleRemoteTX(isStart, senderId) {
             if (isStart) {
@@ -383,11 +617,24 @@
                 activeSpeakers.delete(senderId);
                 playTone(17500, 100); 
                 if (activeSpeakers.size === 0) {
-                    statusEl.innerText = "Canal Livre";
                     displayWrapper.classList.remove('status-rx');
                     pttBtn.classList.remove('receiving');
+                    if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
                 }
             }
+        }
+
+        function playTone(freq, duration) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.value = freq;
+            gain.gain.value = 0.15;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + (duration / 1000));
         }
 
         function startVUMeter() {
@@ -417,28 +664,40 @@
                 ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
                 let w = (smoothLevel / 255) * canvasVU.width;
                 let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-                gradient.addColorStop(0, '#00ff7f'); gradient.addColorStop(0.7, '#ffcc00'); gradient.addColorStop(1, '#ff3333');
-                ctxVU.fillStyle = gradient; ctxVU.fillRect(0, 0, w, canvasVU.height);
+                gradient.addColorStop(0, '#00ff7f'); 
+                gradient.addColorStop(0.7, '#ffcc00'); 
+                gradient.addColorStop(1, '#ff3333');
+                ctxVU.fillStyle = gradient; 
+                ctxVU.fillRect(0, 0, w, canvasVU.height);
                 ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
                 for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 3, canvasVU.height);
             }
             draw();
         }
 
+        pttBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            startPTT();
+        });
+        
+        pttBtn.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            stopPTT();
+        });
+        
+        pttBtn.addEventListener('pointerleave', stopPTT);
+
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'F7') {
+            if (e.key === 'F7' || e.key === 'F2') {
                 e.preventDefault();
-                if (!f7Pressed) { f7Pressed = true; startPTT(); }
-            }
-            if (e.key === 'F2') {
-                e.preventDefault();
-                if (!f2Pressed) { f2Pressed = true; startPTT(); }
+                if (e.key === 'F7' && !f7Pressed) { f7Pressed = true; startPTT(); }
+                if (e.key === 'F2' && !f2Pressed) { f2Pressed = true; startPTT(); }
             }
         });
 
         document.addEventListener('keyup', (e) => {
-            if (e.key === 'F7') { e.preventDefault(); f7Pressed = false; stopPTT(); }
-            if (e.key === 'F2') { e.preventDefault(); f2Pressed = false; stopPTT(); }
+            if (e.key === 'F7') { f7Pressed = false; stopPTT(); }
+            if (e.key === 'F2') { f2Pressed = false; stopPTT(); }
         });
     </script>
 </body>
