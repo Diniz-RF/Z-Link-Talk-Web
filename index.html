@@ -300,6 +300,11 @@
                         break;
                     case "offer":
                         if (!peers[senderId]) await createPeerConnection(senderId, false);
+                        
+                        if (peers[senderId].pc.signalingState !== "stable") {
+                            await peers[senderId].pc.setLocalDescription({ type: "rollback" });
+                        }
+
                         await peers[senderId].pc.setRemoteDescription(new RTCSessionDescription(data.offer));
                         const answer = await peers[senderId].pc.createAnswer();
                         await peers[senderId].pc.setLocalDescription(answer);
@@ -375,16 +380,22 @@
                     }
                 });
 
-                await Promise.all(Object.entries(peers).map(async ([peerId, peer]) => {
-                    const offer = await peer.pc.createOffer();
-                    await peer.pc.setLocalDescription(offer);
+                for (const [peerId, peer] of Object.entries(peers)) {
+                    if (peer.pc.signalingState !== "stable") continue;
 
-                    ws.send(JSON.stringify({
-                        type: "offer",
-                        to: peerId,
-                        offer: peer.pc.localDescription
-                    }));
-                }));
+                    try {
+                        const offer = await peer.pc.createOffer();
+                        await peer.pc.setLocalDescription(offer);
+
+                        ws.send(JSON.stringify({
+                            type: "offer",
+                            to: peerId,
+                            offer: peer.pc.localDescription
+                        }));
+                    } catch (err) {
+                        console.log(err);
+                    }
+                }
                 
                 pttBtn.classList.add('active');
                 statusEl.innerText = "Transmitindo";
