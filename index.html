@@ -374,17 +374,14 @@
 
                 const track = localStream.getAudioTracks()[0];
 
-                // Passo 1: Tornar o replaceTrack assíncrono
-                await Promise.all(Object.values(peers).map(async (peer) => {
+                for (const peer of Object.values(peers)) {
                     if (peer.sender) {
                         await peer.sender.replaceTrack(track);
                     }
-                }));
+                }
 
-                // Passo 2: Delay para garantir que o track esteja ativo antes do SDP ser gerado
                 await new Promise(r => setTimeout(r, 200));
 
-                // Passo 3: Criar a oferta após o delay
                 for (const [peerId, peer] of Object.entries(peers)) {
                     if (peer.pc.signalingState !== "stable") continue;
 
