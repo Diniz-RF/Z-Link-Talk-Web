@@ -644,7 +644,7 @@
 
                         displayWrapper.classList.add('status-rx');
                         pttBtn.classList.add('receiving');
-                        playTone(18500, 50);
+                        playTone(18500, 100);
                     }
                     break;
                 case "new_peer": 
@@ -898,7 +898,7 @@
         if (isStart) {
             activeSpeakers.add(senderId);
 
-            playTone(18500, 50);
+            playTone(18500, 100);
 
             statusEl.innerText = "Recebendo";
 
@@ -916,12 +916,6 @@
             activeSpeakers.delete(senderId);
 
             playRogerBeep();
-
-            rogerAudio.onended = null;
-
-            rogerAudio.onended = () => {
-                playTone(17500, 80);
-            };
 
             if (activeSpeakers.size === 0) {
                 rxUserEl.innerText = "";
@@ -942,10 +936,16 @@
 
     function playRogerBeep() {
         if (!rogerAudio) return;
+
         try {
-            rogerAudio.currentTime = 0;
-            rogerAudio.volume = 0.7;
-            rogerAudio.play().catch(() => {});
+            const clone = rogerAudio.cloneNode();
+            clone.volume = 0.7;
+
+            clone.onended = () => {
+                playTone(17500, 100);
+            };
+
+            clone.play().catch(() => {});
         } catch (e) {}
     }
 
