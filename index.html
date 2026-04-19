@@ -41,7 +41,7 @@
         justify-content: center;
         width: 100%;
         height: 100%;
-        padding-top: 70px; 
+        padding-top: 6px; 
     }
 
     .radio-chassis {
@@ -462,7 +462,7 @@
 
         <div class="display-area" id="display-wrapper">
             <div class="identity-bar" id="trigger-name-modal" style="justify-content: center; cursor: pointer;">
-                <div id="my-name-display" style="color: var(--glow-cyan); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">DEFINIR NOME</div>
+                <div id="my-name-display" style="color: var(--glow-cyan); font-weight: 800; font-size: 20px; text-transform: none; letter-spacing: 1px;">DEFINIR NOME</div>
             </div>
             
             <div id="status">INICIANDO...</div>
@@ -488,7 +488,7 @@
 
 <div id="name-modal" class="user-modal">
   <div class="user-modal-content">
-    <h3>Alterar Nome</h3>
+    <h3>Definir Nome</h3>
     <input type="text" id="user-name-input" placeholder="Seu Nome" style="width: 100%; background: rgba(0,0,0,0.5); border: 2px solid #333; border-radius: 6px; color: var(--glow-cyan); padding: 10px; font-size: 16px; outline: none; margin-bottom: 15px; text-align: center;">
     <button id="save-identity-btn" style="width: 100%; background: #2c313a; border: 2px solid #4a5159; border-radius: 6px; color: #fff; padding: 10px; font-size: 16px; cursor: pointer; font-weight: bold;">SALVAR</button>
   </div>
@@ -596,7 +596,7 @@
             }, connectionId);
         }
         myNameDisplay.innerText = userName || "DEFINIR NOME";
-        showToast("Nome salvo com sucesso");
+        showToast("Nome definido com sucesso");
         nameModal.style.display = "none";
     });
 
