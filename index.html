@@ -634,6 +634,7 @@
         }, 10000);
 
         ws.onopen = () => {
+            isReconnecting = false;
             if (activeId !== connectionId) return;
             
             // AJUSTE 3: Garantir limpeza do timeout no open
@@ -641,7 +642,6 @@
             
             isConnecting = false;
             lastConnectTime = Date.now();
-            isReconnecting = false;
             currentBackoffIdx = 0;
             setAppState(APP_STATES.CONNECTED);
             
@@ -735,6 +735,7 @@
         };
 
         ws.onclose = () => {
+            if (isReconnecting) return;
             if (activeId !== connectionId) return;
 
             ws = null;
@@ -803,19 +804,14 @@
     }
 
     function forceReconnection() {
-        // AJUSTE 2: Evitar reconexão dupla se já estiver conectando
-        if (isConnecting) return;
-        
-        if (!isAppOn) return;
-        if (isReconnecting) return;
+        if (!isAppOn || isReconnecting) return;
+
         isReconnecting = true;
+
         if (ws) {
             try { ws.close(); } catch {}
             ws = null;
         }
-        resetarConexoes();
-        currentBackoffIdx = 0;
-        tentarReconectar();
     }
 
     function tentarReconectar() {
