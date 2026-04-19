@@ -1034,12 +1034,12 @@
 
             if (smoothLevel > peakLevel) {
     peakLevel = targetLevel;
-    peakHold = 10; // bem menor (resposta rápida)
+    peakHold = 12;
 } else {
     if (peakHold > 0) {
         peakHold--;
     } else {
-        peakLevel -= 0.02; // queda mais natural (linear, não exponencial)
+        peakLevel -= 0.015;
         if (peakLevel < targetLevel) peakLevel = targetLevel;
         if (peakLevel < 0) peakLevel = 0;
     }
@@ -1076,7 +1076,7 @@ for (let i = 0; i < totalBars; i++) {
 
             if (peakLevel > 0.01) {
                 ctxVU.fillStyle = '#ffffff';
-                let peakBar = Math.min(totalBars - 1, Math.floor(peakLevel * totalBars));
+                let peakBar = Math.floor(peakLevel * (totalBars - 1));
 let peakX = peakBar * (barWidth + barSpacing);
 
 ctxVU.fillStyle = '#ffffff';
