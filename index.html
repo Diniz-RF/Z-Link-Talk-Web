@@ -1033,14 +1033,14 @@
             smoothLevel += (targetLevel - smoothLevel) * 0.25;
 
             if (smoothLevel > peakLevel) {
-    peakLevel = targetLevel;
+    peakLevel = smoothLevel;
     peakHold = 12;
 } else {
     if (peakHold > 0) {
         peakHold--;
     } else {
         peakLevel -= 0.015;
-        if (peakLevel < targetLevel) peakLevel = targetLevel;
+        if (peakLevel < smoothLevel) peakLevel = smoothLevel;
         if (peakLevel < 0) peakLevel = 0;
     }
 }
@@ -1076,7 +1076,8 @@ for (let i = 0; i < totalBars; i++) {
 
             if (peakLevel > 0.01) {
                 ctxVU.fillStyle = '#ffffff';
-                let peakBar = Math.floor(peakLevel * (totalBars - 1));
+                let peakBar = Math.floor(peakLevel * totalBars);
+if (peakBar >= totalBars) peakBar = totalBars - 1;
 let peakX = peakBar * (barWidth + barSpacing);
 
 ctxVU.fillStyle = '#ffffff';
