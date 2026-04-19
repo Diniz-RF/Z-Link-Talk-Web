@@ -690,16 +690,22 @@
                     setTimeout(() => {
                         if (data.activeTransmitters && data.activeTransmitters.length > 0) {
                             const firstSpeaker = data.activeTransmitters[0];
-                            if (!peers[firstSpeaker]) return;
-                            const name = users[firstSpeaker] || "Usuário";
+                            const waitPeer = setInterval(() => {
+    if (peers[firstSpeaker]) {
+        clearInterval(waitPeer);
 
-                            activeSpeakers.add(firstSpeaker);
+        const name = users[firstSpeaker] || "Usuário";
 
-                            statusEl.innerText = "Recebendo";
-                            rxUserEl.innerText = name;
+        activeSpeakers.add(firstSpeaker);
 
-                            displayWrapper.classList.add('status-rx');
-                            pttBtn.classList.add('receiving');
+        statusEl.innerText = "Recebendo";
+        rxUserEl.innerText = name;
+
+        displayWrapper.classList.add('status-rx');
+        pttBtn.classList.add('receiving');
+    }
+}, 100);
+                            
                         }
                     }, 500);
                     break;
