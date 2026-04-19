@@ -422,6 +422,30 @@
     }
 
     #audio-container { display: none; }
+
+    #toast {
+        position: fixed;
+        bottom: 40px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        background: var(--glow-cyan);
+        color: #000;
+        padding: 12px 25px;
+        border-radius: 30px;
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 1px;
+        z-index: 10000;
+        opacity: 0;
+        pointer-events: none;
+        transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s;
+        box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+        text-transform: uppercase;
+    }
+    #toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
 </style>
 </head>
 <body>
@@ -437,9 +461,8 @@
         <div class="dev-credit">Desenvolvido por Diniz-RF</div>
 
         <div class="display-area" id="display-wrapper">
-            <div class="identity-bar">
-                <input type="text" id="user-name-input" placeholder="Seu Nome">
-                <button id="save-identity-btn">SALVAR</button>
+            <div class="identity-bar" id="trigger-name-modal" style="justify-content: center; cursor: pointer;">
+                <div id="my-name-display" style="color: var(--glow-cyan); font-weight: 800; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">DEFINIR NOME</div>
             </div>
             
             <div id="status">INICIANDO...</div>
@@ -463,6 +486,14 @@
     </div>
 </div>
 
+<div id="name-modal" class="user-modal">
+  <div class="user-modal-content">
+    <h3>Alterar Nome</h3>
+    <input type="text" id="user-name-input" placeholder="Seu Nome" style="width: 100%; background: rgba(0,0,0,0.5); border: 2px solid #333; border-radius: 6px; color: var(--glow-cyan); padding: 10px; font-size: 16px; outline: none; margin-bottom: 15px; text-align: center;">
+    <button id="save-identity-btn" style="width: 100%; background: #2c313a; border: 2px solid #4a5159; border-radius: 6px; color: #fff; padding: 10px; font-size: 16px; cursor: pointer; font-weight: bold;">SALVAR</button>
+  </div>
+</div>
+
 <div id="user-modal" class="user-modal">
   <div class="user-modal-content">
     <h3>Usuários Conectados</h3>
@@ -470,6 +501,8 @@
     <button id="close-user-modal">Fechar</button>
   </div>
 </div>
+
+<div id="toast"></div>
 
 <div id="audio-container"></div>
 <audio id="roger-audio" src="roger.wav" preload="auto"></audio>
@@ -499,6 +532,9 @@
     
     const modal = document.getElementById("user-modal");
     const userListEl = document.getElementById("user-list");
+    const nameModal = document.getElementById("name-modal");
+    const myNameDisplay = document.getElementById("my-name-display");
+    const toast = document.getElementById("toast");
 
     let ws = null;
     let connectionId = 0; 
@@ -526,6 +562,7 @@
 
     let userId;
     let userName;
+    let toastTimer = null;
 
     function initIdentity() {
         userId = localStorage.getItem("zlink_user_id");
@@ -535,6 +572,16 @@
         }
         userName = localStorage.getItem("zlink_user_name") || "";
         nameInput.value = userName;
+        myNameDisplay.innerText = userName || "DEFINIR NOME";
+    }
+
+    function showToast(message) {
+        toast.innerText = message;
+        toast.classList.add('show');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
     }
 
     saveBtn.addEventListener('click', () => {
@@ -548,8 +595,9 @@
                 name: userName
             }, connectionId);
         }
-        saveBtn.innerText = "SALVO ✔";
-        setTimeout(() => saveBtn.innerText = "SALVAR", 1500);
+        myNameDisplay.innerText = userName || "DEFINIR NOME";
+        showToast("Nome salvo com sucesso");
+        nameModal.style.display = "none";
     });
 
     async function initAudio() {
@@ -613,7 +661,6 @@
 
     clearTimeout(connInitialTimeout);
 
-    // 🔥 AINDA NÃO ESTÁ PRONTO
     setAppState(APP_STATES.CONNECTING);
 
     safeSend({
@@ -639,7 +686,6 @@
 
             switch (data.type) {
                 case "init":
-    // 🔥 AGORA SIM ESTÁ CONECTADO DE VERDADE
     setAppState(APP_STATES.CONNECTED);
 
     myId = data.id;
@@ -716,7 +762,6 @@
 
     ws = null;
 
-    // 🔥 LIMPEZA CRÍTICA
     for (let id in peers) removerPeer(id);
     peers = {};
     activeSpeakers.clear();
@@ -799,7 +844,7 @@
     function updatePeerCount() { 
         if (!isAppOn) {
             peerCountEl.innerText = "RADIO OFF";
-        } else if (currentAppState === APP_STATES.CONNECTING || currentAppState === APP_STATES.RECONNECTING) {
+        } else if (statusEl.innerText === "INICIANDO..." || currentAppState === APP_STATES.CONNECTING || currentAppState === APP_STATES.RECONNECTING) {
             peerCountEl.innerText = "CARREGANDO";
         } else if (currentAppState === APP_STATES.CONNECTED) {
             peerCountEl.innerText = `CONECTADOS AGORA: ${Object.keys(users).length}`;
@@ -1064,6 +1109,8 @@
     peerCountEl.addEventListener("click", () => { renderUserList(); modal.style.display = "flex"; });
     document.getElementById("close-user-modal").onclick = () => { modal.style.display = "none"; };
     modal.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
+    document.getElementById("trigger-name-modal").onclick = () => { nameModal.style.display = "flex"; };
+    nameModal.addEventListener("click", (e) => { if (e.target === nameModal) nameModal.style.display = "none"; });
     pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); startPTT(); });
     pttBtn.addEventListener('pointerup', (e) => { e.preventDefault(); stopPTT(); });
     pttBtn.addEventListener('pointerleave', stopPTT);
