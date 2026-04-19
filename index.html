@@ -331,7 +331,7 @@
     #ptt-btn.active { transform: scale(0.94); }
 
     .ptt-label-main { font-size: clamp(38px, 6vw, 38px); font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
-    .ptt-label-sub { font-size: 18px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
+    .ptt-label-sub { font-size: 18px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; text-align: center; line-height: 1.1; }
 
     .speaker-grill {
         height: 60px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
@@ -455,7 +455,7 @@
         <div class="ptt-section">
             <button id="ptt-btn">
                 <div class="ptt-label-main">PTT</div>
-                <div class="ptt-label-sub" id="ptt-hint">PUSH TO TALK</div>
+                <div class="ptt-label-sub" id="ptt-hint">PUSH<br>TO<br>TALK</div>
             </button>
         </div>
         
@@ -771,6 +771,7 @@
             rxUserEl.style.opacity = "0.4";
             rxUserEl.style.transform = "scale(1)";
         }
+        updatePeerCount();
     }
 
     function forceReconnection() {
@@ -796,7 +797,13 @@
     }
 
     function updatePeerCount() { 
-        peerCountEl.innerText = `CONECTADOS AGORA: ${Object.keys(users).length}`;
+        if (!isAppOn) {
+            peerCountEl.innerText = "RADIO OFF";
+        } else if (currentAppState === APP_STATES.CONNECTING || currentAppState === APP_STATES.RECONNECTING) {
+            peerCountEl.innerText = "CARREGANDO";
+        } else if (currentAppState === APP_STATES.CONNECTED) {
+            peerCountEl.innerText = `CONECTADOS AGORA: ${Object.keys(users).length}`;
+        }
     }
 
     async function createPeerConnection(peerId, isInitiator, activeId) {
@@ -1030,7 +1037,7 @@
 
     async function ligarApp() {
         isAppOn = true;
-        
+        updatePeerCount();
         knob.classList.remove("off");
         knob.classList.add("on");
 
