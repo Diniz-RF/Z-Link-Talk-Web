@@ -513,16 +513,12 @@
     
     let lastPingTime = 0;
     let latency = 0;
-    let lastConnectTime = 0;
     let isConnecting = false;
 
     let heartbeatInterval = null;
     let pongTimeout = null;
     let reconnectTimer = null;
     let connInitialTimeout = null;
-    let backoffDelays = [3000, 5000, 7000, 10000];
-    let currentBackoffIdx = 0;
-    let isReconnecting = false;
 
     let f7Pressed = false;
     let f2Pressed = false;
@@ -557,46 +553,32 @@
 
     async function initAudio() {
         if (audioInitialized) return;
-
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         audioCtx = new AudioContext();
-
         txAnalyser = audioCtx.createAnalyser();
         txAnalyser.fftSize = 256;
-
-        localStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true,
-                channelCount: 1
-            }
-        });
-
-        localStream.getAudioTracks()[0].enabled = false;
-
-        const source = audioCtx.createMediaStreamSource(localStream);
-        source.connect(txAnalyser);
-
-        audioInitialized = true;
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+            localStream.getAudioTracks()[0].enabled = false;
+            const source = audioCtx.createMediaStreamSource(localStream);
+            source.connect(txAnalyser);
+            audioInitialized = true;
+        } catch(e) {
+            statusEl.innerText = "ERRO MIC";
+        }
     }
 
     window.addEventListener('load', async () => {
         initIdentity();
         knob.classList.add("on");
-
-        try {
-            await initAudio();
-            startVUMeter();
-            connectWebSocket();
-        } catch (err) {
-            statusEl.innerText = "ERRO MIC";
-        }
+        await initAudio();
+        startVUMeter();
+        connectWebSocket();
     });
 
     function connectWebSocket() {
         if (!isAppOn || !audioInitialized) return;
-        if (isConnecting) return;
+        
         isConnecting = true;
 
         if (ws) {
@@ -617,34 +599,26 @@
         reconnectTimer = null;
         clearTimeout(connInitialTimeout);
         
-        setAppState(currentBackoffIdx > 0 ? APP_STATES.RECONNECTING : APP_STATES.CONNECTING);
+        setAppState(APP_STATES.CONNECTING);
 
         ws = new WebSocket(WS_URL);
 
-        // AJUSTE 1: Timeout de conexão ajustado para 10s e verificação de estado CONNECTING
         connInitialTimeout = setTimeout(() => {
-            if (
-                activeId === connectionId &&
-                ws &&
-                ws.readyState === WebSocket.CONNECTING
-            ) {
-                console.warn("Timeout de conexão - reconectando...");
+            if (activeId === connectionId && ws && ws.readyState === WebSocket.CONNECTING) {
                 forceReconnection();
             }
         }, 10000);
 
         ws.onopen = () => {
-            isReconnecting = false;
             if (activeId !== connectionId) return;
-            
-            // AJUSTE 3: Garantir limpeza do timeout no open
+
             clearTimeout(connInitialTimeout);
-            
+
             isConnecting = false;
-            lastConnectTime = Date.now();
-            currentBackoffIdx = 0;
+            isReconnecting = false;
+
             setAppState(APP_STATES.CONNECTED);
-            
+
             safeSend({
                 type: "identify",
                 userId: userId,
@@ -735,34 +709,16 @@
         };
 
         ws.onclose = () => {
-            if (isReconnecting) return;
-            if (activeId !== connectionId) return;
+            if (!isAppOn) return;
 
             ws = null;
             isConnecting = false;
 
-            const agora = Date.now();
-            const tempoConectado = agora - lastConnectTime;
-
-            let delay = backoffDelays[currentBackoffIdx];
-
-            // se caiu rápido, adiciona atraso extra
-            if (tempoConectado < 2000) {
-                delay += 2000;
-            }
-
             clearTimeout(reconnectTimer);
 
             reconnectTimer = setTimeout(() => {
-                reconnectTimer = null;
-
-                currentBackoffIdx = Math.min(
-                    currentBackoffIdx + 1,
-                    backoffDelays.length - 1
-                );
-
                 connectWebSocket();
-            }, delay);
+            }, 3000);
         };
 
         ws.onerror = () => {
@@ -804,48 +760,20 @@
     }
 
     function forceReconnection() {
-        if (!isAppOn || isReconnecting) return;
-
-        isReconnecting = true;
+        if (!isAppOn) return;
 
         if (ws) {
             try { ws.close(); } catch {}
             ws = null;
         }
-    }
 
-    function tentarReconectar() {
-        if (!isAppOn) return;
-        if (isReconnecting && reconnectTimer) return;
+        isConnecting = false;
+
         clearTimeout(reconnectTimer);
-        const delay = backoffDelays[currentBackoffIdx];
-        reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            currentBackoffIdx = Math.min(currentBackoffIdx + 1, backoffDelays.length - 1);
-            connectWebSocket();
-        }, delay);
-    }
 
-    function resetarConexoes() {
-        pararHeartbeat();
-        for (let id in peers) removerPeer(id);
-        peers = {};
-        users = {};
-        activeSpeakers.clear();
-        updatePeerCount();
-        if (isTransmitting) {
-            isTransmitting = false;
-            if (localStream && localStream.getAudioTracks().length > 0) localStream.getAudioTracks()[0].enabled = false;
-            pttBtn.classList.remove('active');
-            displayWrapper.classList.remove('status-tx');
-        }
-        displayWrapper.classList.remove('status-rx');
-        pttBtn.classList.remove('receiving');
-        rxUserEl.innerText = "";
-        rxUserEl.dataset.senderId = "";
-        rxUserEl.style.opacity = "0.4";
-        rxUserEl.style.transform = "scale(1)";
-        setAppState(APP_STATES.DISCONNECTED);
+        reconnectTimer = setTimeout(() => {
+            connectWebSocket();
+        }, 2000);
     }
 
     function safeSend(payload, activeId) {
@@ -1071,7 +999,14 @@
         users = {};
         activeSpeakers.clear();
         isTransmitting = false;
-        if (localStream) localStream.getAudioTracks().forEach(track => track.enabled = false);
+        
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                track.stop();
+            });
+            localStream = null;
+        }
+
         updatePeerCount();
         rxUserEl.innerText = "";
         displayWrapper.classList.remove('status-rx', 'status-tx');
@@ -1086,6 +1021,23 @@
         statusEl.innerText = "Conectando...";
         knob.classList.remove("off");
         knob.classList.add("on");
+
+        if (!localStream) {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    channelCount: 1
+                }
+            });
+
+            localStream.getAudioTracks()[0].enabled = false;
+
+            const source = audioCtx.createMediaStreamSource(localStream);
+            source.connect(txAnalyser);
+        }
+
         connectWebSocket();
     }
 
