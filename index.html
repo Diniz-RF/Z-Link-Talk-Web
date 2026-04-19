@@ -394,19 +394,6 @@
         font-weight: bold;
     }
 
-    @media (max-height: 850px) {
-        .radio-chassis { transform: scale(0.9) perspective(800px) rotateX(2deg); transform-origin: center; }
-    }
-    @media (max-height: 750px) {
-        .radio-chassis { transform: scale(0.8) perspective(800px) rotateX(2deg); }
-    }
-    @media (max-height: 650px) {
-        .radio-chassis { transform: scale(0.7) perspective(800px) rotateX(2deg); }
-        .speaker-grill { height: 70px; }
-    }
-
-    #audio-container { display: none; }
-
     .knob.on {
         box-shadow: 0 0 10px #00ff88, 0 0 25px rgba(0,255,120,0.7);
     }
@@ -421,6 +408,19 @@
         50% { opacity: 0.4; }
         100% { opacity: 1; }
     }
+
+    @media (max-height: 850px) {
+        .radio-chassis { transform: scale(0.9) perspective(800px) rotateX(2deg); transform-origin: center; }
+    }
+    @media (max-height: 750px) {
+        .radio-chassis { transform: scale(0.8) perspective(800px) rotateX(2deg); }
+    }
+    @media (max-height: 650px) {
+        .radio-chassis { transform: scale(0.7) perspective(800px) rotateX(2deg); }
+        .speaker-grill { height: 70px; }
+    }
+
+    #audio-container { display: none; }
 </style>
 </head>
 <body>
@@ -503,6 +503,7 @@
     let connectionId = 0; 
     let currentAppState = APP_STATES.DISCONNECTED;
     let isAppOn = true;
+    let audioInitialized = false;
     
     let myId = null, localStream, audioCtx, txAnalyser;
     let peers = {}; 
@@ -554,13 +555,14 @@
     });
 
     async function initAudio() {
+        if (audioInitialized) return;
+
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-    
         audioCtx = new AudioContext();
-    
+
         txAnalyser = audioCtx.createAnalyser();
         txAnalyser.fftSize = 256;
-    
+
         localStream = await navigator.mediaDevices.getUserMedia({
             audio: {
                 echoCancellation: true,
@@ -569,28 +571,30 @@
                 channelCount: 1
             }
         });
-    
+
         localStream.getAudioTracks()[0].enabled = false;
-    
+
         const source = audioCtx.createMediaStreamSource(localStream);
         source.connect(txAnalyser);
+
+        audioInitialized = true;
     }
 
     window.addEventListener('load', async () => {
         initIdentity();
         knob.classList.add("on");
+
         try {
             await initAudio();
             startVUMeter();
             connectWebSocket();
         } catch (err) {
-            console.error("Microfone não detectado:", err);
             statusEl.innerText = "ERRO MIC";
         }
     });
 
     function connectWebSocket() {
-        if (!isAppOn) return;
+        if (!isAppOn || !audioInitialized) return;
 
         if (ws) {
             ws.onclose = null;
@@ -685,11 +689,7 @@
                     break;
                 case "user_update":
                     users[data.id] = data.name || data.id;
-
-                    if (rxUserEl.dataset.senderId === data.id) {
-                        rxUserEl.innerText = data.name || data.id;
-                    }
-
+                    if (rxUserEl.dataset.senderId === data.id) rxUserEl.innerText = data.name || data.id;
                     if (activeSpeakers.size > 0) renderUserList();
                     break;
                 case "offer":
@@ -734,22 +734,17 @@
 
     function iniciarHeartbeat(activeId) {
         pararHeartbeat();
-
         heartbeatInterval = setInterval(() => {
             if (activeId !== connectionId || !ws || ws.readyState !== WebSocket.OPEN) {
                 pararHeartbeat();
                 return;
             }
-
             lastPingTime = Date.now();
-
             safeSend({ type: "ping" }, activeId);
-
             clearTimeout(pongTimeout);
             pongTimeout = setTimeout(() => {
                 if (activeId === connectionId) forceReconnection();
             }, 10000);
-
         }, 5000);
     }
 
@@ -772,16 +767,12 @@
     function forceReconnection() {
         if (!isAppOn) return;
         if (isReconnecting) return;
-
         isReconnecting = true;
-
         if (ws) {
             try { ws.close(); } catch {}
             ws = null;
         }
-
         resetarConexoes();
-
         currentBackoffIdx = 0;
         tentarReconectar();
     }
@@ -789,19 +780,11 @@
     function tentarReconectar() {
         if (!isAppOn) return;
         clearTimeout(reconnectTimer);
-
         const delay = backoffDelays[currentBackoffIdx];
-
         reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
-
-            currentBackoffIdx = Math.min(
-                currentBackoffIdx + 1,
-                backoffDelays.length - 1
-            );
-
+            currentBackoffIdx = Math.min(currentBackoffIdx + 1, backoffDelays.length - 1);
             connectWebSocket();
-
         }, delay);
     }
 
@@ -814,9 +797,7 @@
         updatePeerCount();
         if (isTransmitting) {
             isTransmitting = false;
-            if (localStream && localStream.getAudioTracks().length > 0) {
-                localStream.getAudioTracks()[0].enabled = false;
-            }
+            if (localStream && localStream.getAudioTracks().length > 0) localStream.getAudioTracks()[0].enabled = false;
             pttBtn.classList.remove('active');
             displayWrapper.classList.remove('status-tx');
         }
@@ -830,8 +811,7 @@
     }
 
     function safeSend(payload, activeId) {
-        if (!payload) return;
-        if (activeId !== connectionId) return;
+        if (!payload || activeId !== connectionId) return;
         if (ws && ws.readyState === WebSocket.OPEN) {
             try { ws.send(JSON.stringify(payload)); } catch (e) {}
         }
@@ -845,13 +825,9 @@
         if (peers[peerId]) return;
         const pc = new RTCPeerConnection(rtcConfig);
         peers[peerId] = { pc, audioEl: null, analyser: null, streamSource: null };
-        if (localStream) {
-            localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-        }
+        if (localStream) localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
         pc.onicecandidate = (e) => {
-            if (e.candidate && activeId === connectionId) {
-                safeSend({ type: "ice_candidate", to: peerId, candidate: e.candidate }, activeId);
-            }
+            if (e.candidate && activeId === connectionId) safeSend({ type: "ice_candidate", to: peerId, candidate: e.candidate }, activeId);
         };
         pc.onconnectionstatechange = () => {
             if (activeId !== connectionId) return;
@@ -915,7 +891,7 @@
         if (isTransmitting || activeSpeakers.size > 0) return;
         isTransmitting = true;
         if (localStream) localStream.getAudioTracks()[0].enabled = true;
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
         pttBtn.classList.add('active');
         statusEl.innerText = "Transmitindo";
         displayWrapper.classList.add('status-tx');
@@ -936,26 +912,18 @@
     function handleRemoteTX(isStart, senderId, name) {
         if (isStart) {
             activeSpeakers.add(senderId);
-
             playTone(18500, 100);
-
             statusEl.innerText = "Recebendo";
-
             const displayName = name || users[senderId] || "Usuário";
-
             rxUserEl.innerText = displayName;
             rxUserEl.dataset.senderId = senderId; 
-
             rxUserEl.style.opacity = "1";
             rxUserEl.style.transform = "scale(1.05)";
-
             displayWrapper.classList.add('status-rx');
             pttBtn.classList.add('receiving');
         } else {
             activeSpeakers.delete(senderId);
-
             playRogerBeep();
-
             if (activeSpeakers.size === 0) {
                 rxUserEl.innerText = "";
                 rxUserEl.dataset.senderId = "";
@@ -963,34 +931,22 @@
                 rxUserEl.style.transform = "scale(1)";
                 displayWrapper.classList.remove('status-rx');
                 pttBtn.classList.remove('receiving');
-
-                if (currentAppState === APP_STATES.CONNECTED) {
-                    statusEl.innerText = APP_STATES.CONNECTED;
-                }
+                if (currentAppState === APP_STATES.CONNECTED) statusEl.innerText = APP_STATES.CONNECTED;
             }
         }
-
         if (modal.style.display === "flex") renderUserList();
     }
 
     function playRogerBeep() {
         if (!rogerAudio) return;
-
         try {
             const clone = rogerAudio.cloneNode();
             clone.volume = 0.7;
-
             clone.onended = () => {
                 playTone(17500, 100);
-
-                // remover da memória após uso
                 clone.remove();
             };
-
-            clone.play().catch(() => {
-                clone.remove();
-            });
-
+            clone.play().catch(() => { clone.remove(); });
         } catch (e) {}
     }
 
@@ -1034,11 +990,8 @@
             ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
             let w = (smoothLevel / 255) * canvasVU.width;
             let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-            gradient.addColorStop(0, '#00ff7f'); 
-            gradient.addColorStop(0.7, '#ffcc00'); 
-            gradient.addColorStop(1, '#ff3333');
-            ctxVU.fillStyle = gradient; 
-            ctxVU.fillRect(0, 0, w, canvasVU.height);
+            gradient.addColorStop(0, '#00ff7f'); gradient.addColorStop(0.7, '#ffcc00'); gradient.addColorStop(1, '#ff3333');
+            ctxVU.fillStyle = gradient; ctxVU.fillRect(0, 0, w, canvasVU.height);
             ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
             for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 3, canvasVU.height);
         }
@@ -1047,76 +1000,45 @@
 
     function renderUserList() {
         userListEl.innerHTML = "";
-        Object.keys(users)
-            .sort((a, b) => users[a].localeCompare(users[b]))
-            .forEach(id => {
-                const div = document.createElement("div");
-                div.className = "user-item";
-
-                let name = users[id];
-
-                if (id === myId) name += " (Você)";
-                if (activeSpeakers.has(id)) name += " 🔊";
-
-                div.innerText = name;
-
-                if (id === myId) {
-                    div.style.color = "#4ade80";
-                }
-
-                userListEl.appendChild(div);
-            });
+        Object.keys(users).sort((a, b) => users[a].localeCompare(users[b])).forEach(id => {
+            const div = document.createElement("div");
+            div.className = "user-item";
+            let name = users[id];
+            if (id === myId) name += " (Você)";
+            if (activeSpeakers.has(id)) name += " 🔊";
+            div.innerText = name;
+            if (id === myId) div.style.color = "#4ade80";
+            userListEl.appendChild(div);
+        });
     }
 
     function togglePower() {
         if (isAppOn) {
             desligarApp();
-            knob.classList.remove("on");
-            knob.classList.add("off");
         } else {
             ligarApp();
-            knob.classList.remove("off");
-            knob.classList.add("on");
         }
     }
 
     function desligarApp() {
         isAppOn = false;
-
         if (ws) {
             try { ws.close(); } catch {}
             ws = null;
         }
-
         clearTimeout(reconnectTimer);
         pararHeartbeat();
-
         for (let id in peers) removerPeer(id);
         peers = {};
         users = {};
         activeSpeakers.clear();
-
-        if (audioCtx) {
-            try { audioCtx.close(); } catch {}
-            audioCtx = null;
-        }
-
-        if (localStream) {
-            localStream.getTracks().forEach(track => {
-                track.stop(); // 🔥 libera o microfone completamente
-            });
-            localStream = null;
-        }
-
         isTransmitting = false;
-
+        if (localStream) localStream.getAudioTracks().forEach(track => track.enabled = false);
         updatePeerCount();
         rxUserEl.innerText = "";
         displayWrapper.classList.remove('status-rx', 'status-tx');
         pttBtn.classList.remove('active', 'receiving');
-
         statusEl.innerText = "DESLIGADO";
-        
         knob.classList.remove("on");
         knob.classList.add("off");
     }
@@ -1124,37 +1046,15 @@
     async function ligarApp() {
         isAppOn = true;
         statusEl.innerText = "Conectando...";
-        
         knob.classList.remove("off");
         knob.classList.add("on");
-        
-        try {
-            await initAudio();
-            connectWebSocket();
-        } catch (err) {
-            console.error("Erro ao religar o app:", err);
-            statusEl.innerText = "ERRO AO RELIGAR";
-            isAppOn = false;
-            knob.classList.remove("on");
-            knob.classList.add("off");
-        }
+        connectWebSocket();
     }
 
     knob.addEventListener('click', togglePower);
-
-    peerCountEl.addEventListener("click", () => {
-        renderUserList();
-        modal.style.display = "flex";
-    });
-
-    document.getElementById("close-user-modal").onclick = () => {
-        modal.style.display = "none";
-    };
-    
-    modal.addEventListener("click", (e) => {
-        if (e.target === modal) modal.style.display = "none";
-    });
-
+    peerCountEl.addEventListener("click", () => { renderUserList(); modal.style.display = "flex"; });
+    document.getElementById("close-user-modal").onclick = () => { modal.style.display = "none"; };
+    modal.addEventListener("click", (e) => { if (e.target === modal) modal.style.display = "none"; });
     pttBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); startPTT(); });
     pttBtn.addEventListener('pointerup', (e) => { e.preventDefault(); stopPTT(); });
     pttBtn.addEventListener('pointerleave', stopPTT);
