@@ -101,9 +101,11 @@
         margin-bottom: 6px;
         width: 100%;
         z-index: 10;
+        flex-wrap: nowrap; /* Garante que não quebre linha */
     }
     #user-name-input {
-        flex: 1;
+        flex: 1 1 auto; /* Permite crescer e encolher conforme o espaço */
+        min-width: 0; /* Essencial para o flexbox permitir o encolhimento correto */
         background: rgba(0,0,0,0.5);
         border: 1px solid #333;
         border-radius: 6px;
@@ -117,6 +119,7 @@
         box-shadow: 0 0 8px var(--glow-cyan);
     }
     #save-identity-btn {
+        flex-shrink: 0; /* Impede o botão de sumir ou encolher */
         background: #2c313a;
         border: 1px solid #4a5159;
         border-radius: 6px;
