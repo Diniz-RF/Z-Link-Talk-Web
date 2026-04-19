@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -514,6 +513,8 @@
     
     let lastPingTime = 0;
     let latency = 0;
+    let lastConnectTime = 0;
+    let isConnecting = false;
 
     let heartbeatInterval = null;
     let pongTimeout = null;
@@ -595,6 +596,8 @@
 
     function connectWebSocket() {
         if (!isAppOn || !audioInitialized) return;
+        if (isConnecting) return;
+        isConnecting = true;
 
         if (ws) {
             ws.onclose = null;
@@ -618,16 +621,27 @@
 
         ws = new WebSocket(WS_URL);
 
+        // AJUSTE 1: Timeout de conexão ajustado para 10s e verificação de estado CONNECTING
         connInitialTimeout = setTimeout(() => {
-            if (activeId === connectionId && (!ws || ws.readyState !== WebSocket.OPEN)) {
+            if (
+                activeId === connectionId &&
+                ws &&
+                ws.readyState === WebSocket.CONNECTING
+            ) {
+                console.warn("Timeout de conexão - reconectando...");
                 forceReconnection();
             }
-        }, 5000);
+        }, 10000);
 
         ws.onopen = () => {
             if (activeId !== connectionId) return;
-            isReconnecting = false;
+            
+            // AJUSTE 3: Garantir limpeza do timeout no open
             clearTimeout(connInitialTimeout);
+            
+            isConnecting = false;
+            lastConnectTime = Date.now();
+            isReconnecting = false;
             currentBackoffIdx = 0;
             setAppState(APP_STATES.CONNECTED);
             
@@ -722,8 +736,32 @@
 
         ws.onclose = () => {
             if (activeId !== connectionId) return;
+
             ws = null;
-            tentarReconectar();
+            isConnecting = false;
+
+            const agora = Date.now();
+            const tempoConectado = agora - lastConnectTime;
+
+            let delay = backoffDelays[currentBackoffIdx];
+
+            // se caiu rápido, adiciona atraso extra
+            if (tempoConectado < 2000) {
+                delay += 2000;
+            }
+
+            clearTimeout(reconnectTimer);
+
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+
+                currentBackoffIdx = Math.min(
+                    currentBackoffIdx + 1,
+                    backoffDelays.length - 1
+                );
+
+                connectWebSocket();
+            }, delay);
         };
 
         ws.onerror = () => {
@@ -765,6 +803,9 @@
     }
 
     function forceReconnection() {
+        // AJUSTE 2: Evitar reconexão dupla se já estiver conectando
+        if (isConnecting) return;
+        
         if (!isAppOn) return;
         if (isReconnecting) return;
         isReconnecting = true;
@@ -779,6 +820,7 @@
 
     function tentarReconectar() {
         if (!isAppOn) return;
+        if (isReconnecting && reconnectTimer) return;
         clearTimeout(reconnectTimer);
         const delay = backoffDelays[currentBackoffIdx];
         reconnectTimer = setTimeout(() => {
