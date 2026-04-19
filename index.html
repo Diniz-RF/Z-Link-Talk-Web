@@ -995,35 +995,98 @@
 
     function startVUMeter() {
         const data = new Uint8Array(256);
-        let smoothLevel = 0; 
+        let smoothLevel = 0;
+        let peakLevel = 0;
+        let peakHold = 0;
+        let maxLevel = 0.05;
+
         function draw() {
             requestAnimationFrame(draw);
-            let valorAtual = 0;
-            if (isTransmitting) {
-                txAnalyser.getByteFrequencyData(data);
-                let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
-                let rawLevel = (sum / 60) * 1.5;
-                valorAtual = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
+            let rms = 0;
+
+            const calculateRMS = (analyser) => {
+                analyser.getByteTimeDomainData(data);
+                let sumSquares = 0;
+                for (let i = 0; i < data.length; i++) {
+                    let val = (data[i] / 128) - 1;
+                    sumSquares += val * val;
+                }
+                return Math.sqrt(sumSquares / data.length);
+            };
+
+            if (isTransmitting && txAnalyser) {
+                rms = calculateRMS(txAnalyser);
             } else if (activeSpeakers.size > 0) {
                 activeSpeakers.forEach(id => {
                     if (peers[id] && peers[id].analyser) {
-                        peers[id].analyser.getByteFrequencyData(data);
-                        let sum = 0; for(let i = 0; i < 60; i++) sum += data[i];
-                        let rawLevel = (sum / 60) * 1.5;
-                        let currentAvg = Math.pow((Math.min(rawLevel, 255) / 255), 0.8) * 255;
-                        if (currentAvg > valorAtual) valorAtual = currentAvg;
+                        let currentRMS = calculateRMS(peers[id].analyser);
+                        if (currentRMS > rms) rms = currentRMS;
                     }
                 });
             }
-            smoothLevel = (smoothLevel * 0.7) + (valorAtual * 0.3);
-            if (smoothLevel > 255) smoothLevel = 255;
+
+            if (rms < 0.01) rms = 0;
+
+            maxLevel = Math.max(maxLevel * 0.998, rms, 0.05);
+            let targetLevel = Math.min(rms / maxLevel, 1);
+
+            smoothLevel += (targetLevel - smoothLevel) * 0.25;
+
+            if (smoothLevel > peakLevel) {
+    peakLevel = targetLevel;
+    peakHold = 10; // bem menor (resposta rápida)
+} else {
+    if (peakHold > 0) {
+        peakHold--;
+    } else {
+        peakLevel -= 0.02; // queda mais natural (linear, não exponencial)
+        if (peakLevel < targetLevel) peakLevel = targetLevel;
+        if (peakLevel < 0) peakLevel = 0;
+    }
+}
+
             ctxVU.clearRect(0, 0, canvasVU.width, canvasVU.height);
-            let w = (smoothLevel / 255) * canvasVU.width;
+            
+            let w = smoothLevel * canvasVU.width;
             let gradient = ctxVU.createLinearGradient(0, 0, canvasVU.width, 0);
-            gradient.addColorStop(0, '#00ff7f'); gradient.addColorStop(0.7, '#ffcc00'); gradient.addColorStop(1, '#ff3333');
-            ctxVU.fillStyle = gradient; ctxVU.fillRect(0, 0, w, canvasVU.height);
+            gradient.addColorStop(0, '#00ff7f');
+            gradient.addColorStop(0.7, '#ffcc00');
+            gradient.addColorStop(1, '#ff3333');
+            
+            ctxVU.fillStyle = gradient;
+            const totalBars = 30;
+const barSpacing = 2;
+const barWidth = (canvasVU.width / totalBars) - barSpacing;
+
+for (let i = 0; i < totalBars; i++) {
+    let barLevel = (i + 1) / totalBars;
+
+    if (smoothLevel >= barLevel) {
+        let x = i * (barWidth + barSpacing);
+
+        let color;
+        if (i < totalBars * 0.6) color = '#00ff7f';
+        else if (i < totalBars * 0.85) color = '#ffcc00';
+        else color = '#ff3333';
+
+        ctxVU.fillStyle = color;
+        ctxVU.fillRect(x, 0, barWidth, canvasVU.height);
+    }
+}
+
+            if (peakLevel > 0.01) {
+                ctxVU.fillStyle = '#ffffff';
+                let peakBar = Math.min(totalBars - 1, Math.floor(peakLevel * totalBars));
+let peakX = peakBar * (barWidth + barSpacing);
+
+ctxVU.fillStyle = '#ffffff';
+ctxVU.fillRect(peakX, 0, barWidth - 1, canvasVU.height);
+            }
+
             ctxVU.fillStyle = 'rgba(0,0,0,0.5)';
-            for(let i = 0; i < canvasVU.width; i += 10) ctxVU.fillRect(i, 0, 3, canvasVU.height);
+            for(let i = 0; i < canvasVU.width; i += 10) {
+                ctxVU.fillRect(i, 0, 3, canvasVU.height);
+            }
         }
         draw();
     }
