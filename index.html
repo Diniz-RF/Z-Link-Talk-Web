@@ -1082,7 +1082,7 @@
 
     async function ligarApp() {
         isAppOn = true;
-        updatePeerCount();
+        setAppState(APP_STATES.CONNECTING);
         knob.classList.remove("off");
         knob.classList.add("on");
 
