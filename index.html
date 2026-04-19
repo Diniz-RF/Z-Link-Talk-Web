@@ -41,7 +41,7 @@
         justify-content: center;
         width: 100%;
         height: 100%;
-        padding-top: 110px; 
+        padding-top: 70px; 
     }
 
     .radio-chassis {
@@ -50,7 +50,7 @@
         max-width: 360px; 
         min-height: auto;
         height: auto;
-        max-height: 95vh;
+        max-height: 100%vh;
         overflow: visible;
         background: var(--radio-gradient); 
         border-radius: 45px;
@@ -72,7 +72,7 @@
     }
 
     #brand { 
-        font-size: clamp(24px, 8vw, 36px); 
+        font-size: clamp(40px, 8vw, 36px); 
         font-weight: 900; 
         color: #fff; 
         text-shadow: 0 0 20px var(--glow-cyan); 
@@ -82,7 +82,7 @@
     }
 
     .dev-credit { 
-        font-size: 10px; 
+        font-size: 11px; 
         color: #63b3ed; 
         opacity: 0.6; 
         text-transform: uppercase; 
@@ -103,12 +103,13 @@
     }
     #user-name-input {
         flex: 1;
+        min-width: 0;
         background: rgba(0,0,0,0.5);
-        border: 1px solid #333;
+        border: 2px solid #333;
         border-radius: 6px;
         color: var(--glow-cyan);
-        padding: 4px 8px;
-        font-size: 12px;
+        padding: 4px 4px;
+        font-size: 16px;
         outline: none;
     }
     #user-name-input:focus {
@@ -116,12 +117,13 @@
         box-shadow: 0 0 8px var(--glow-cyan);
     }
     #save-identity-btn {
+        flex-shrink: 0;
         background: #2c313a;
-        border: 1px solid #4a5159;
+        border: 2px solid #4a5159;
         border-radius: 6px;
         color: #fff;
-        padding: 4px 8px;
-        font-size: 10px;
+        padding: 4px 4px;
+        font-size: 16px;
         cursor: pointer;
         font-weight: bold;
     }
@@ -204,7 +206,7 @@
             inset 0 0 30px rgba(0,0,0,0.9),
             0 0 15px rgba(0, 242, 255, 0.05);
         margin-top: 10px; 
-        margin-bottom: 6px; 
+        margin-bottom: 35px; 
         position: relative;
         display: flex; 
         flex-direction: column; 
@@ -213,7 +215,7 @@
         flex: 2;
         min-height: 260px;
         justify-content: flex-start;
-        gap: 10px;
+        gap: 0px;
     }
 
     .display-area::before {
@@ -234,7 +236,7 @@
         pointer-events: none;
     }
 
-    #status { font-size: 18px; margin: 5px 0; color: #b0b8c4; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; }
+    #status { font-size: 25px; margin: 20px 0; color: #b0b8c4; text-transform: uppercase; letter-spacing: 2px; font-weight: 800; z-index: 2; }
     
     .rx-user {
         min-height: 40px;
@@ -256,7 +258,7 @@
     }
 
     #peer-count { 
-        font-size: 12px; 
+        font-size: 15px; 
         color: #3b82f6; 
         letter-spacing: 1px; 
         font-weight: 700; 
@@ -296,7 +298,7 @@
         justify-content: center; 
         padding: 5px 0;
         margin-top: 5px;
-        margin-bottom: 5px;
+        margin-bottom: 40px;
     }
     
     #ptt-btn {
@@ -328,8 +330,8 @@
     #ptt-btn.receiving::after { border-color: var(--glow-green); box-shadow: 0 0 25px var(--glow-green); }
     #ptt-btn.active { transform: scale(0.94); }
 
-    .ptt-label-main { font-size: clamp(28px, 6vw, 38px); font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
-    .ptt-label-sub { font-size: 10px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
+    .ptt-label-main { font-size: clamp(38px, 6vw, 38px); font-weight: 900; color: #fff; text-shadow: 0 3px 6px rgba(0,0,0,0.8); }
+    .ptt-label-sub { font-size: 18px; color: #a0aec0; letter-spacing: 1.5px; margin-top: 8px; text-transform: uppercase; font-weight: bold; }
 
     .speaker-grill {
         height: 60px; width: 100%; background: radial-gradient(#000 30%, transparent 31%);
@@ -416,7 +418,7 @@
     }
     @media (max-height: 650px) {
         .radio-chassis { transform: scale(0.7) perspective(800px) rotateX(2deg); }
-        .speaker-grill { height: 70px; }
+        .speaker-grill { height: 100px; }
     }
 
     #audio-container { display: none; }
