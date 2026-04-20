@@ -578,20 +578,29 @@
     }
 
     saveBtn.addEventListener('click', () => {
-        userName = nameInput.value.trim();
-        localStorage.setItem("zlink_user_name", userName);
-        if (myId) users[myId] = userName;
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            safeSend({
-                type: "identify",
-                userId: userId,
-                name: userName
-            }, connectionId);
+    userName = nameInput.value.trim();
+    localStorage.setItem("zlink_user_name", userName);
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        safeSend({
+            type: "update_name",
+            name: userName
+        }, connectionId);
+    }
+
+    if (myId) {
+        users[myId] = userName;
+        updatePeerCount();
+
+        if (modal.style.display === "flex") {
+            renderUserList();
         }
-        myNameDisplay.innerText = userName || "DEFINIR NOME";
-        showToast("Nome definido com sucesso");
-        nameModal.style.display = "none";
-    });
+    }
+
+    myNameDisplay.innerText = userName || "DEFINIR NOME";
+    showToast("Nome definido com sucesso");
+    nameModal.style.display = "none";
+});
 
     async function initAudio() {
         if (audioInitialized) return;
