@@ -619,16 +619,19 @@
     });
 
     function cleanupAll() {
-        for (let id in peers) removerPeer(id);
-        peers = {};
-        activeSpeakers.clear();
+    for (let id in peers) removerPeer(id);
+    peers = {};
+    activeSpeakers.clear();
 
-        displayWrapper.classList.remove('status-rx');
-        pttBtn.classList.remove('receiving');
-        rxUserEl.innerText = "";
-        
+    displayWrapper.classList.remove('status-rx');
+    pttBtn.classList.remove('receiving');
+    rxUserEl.innerText = "";
+
+    // 🔥 CORREÇÃO AQUI
+    if (isAppOn) {
         setAppState(APP_STATES.RECONNECTING);
     }
+}
 
     function connectWebSocket() {
         if (isConnecting) return;
